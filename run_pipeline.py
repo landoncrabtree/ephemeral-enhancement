@@ -7,11 +7,16 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Literal
 
-from stages.bifid import BASE64_ALPHABET as B64_ALPHA
-from stages.bifid import bifid_decrypt, build_keyed_square
+from stages.bifid import (
+    BASE64_ALPHABET,
+    STANDARD_ALPHABET,
+    bifid_decrypt,
+)
 from stages.columnar import columnar_decrypt
 from stages.common import normalize_base64_alphabet, printable_ratio
 from stages.double_columnar import double_columnar_decrypt
+from stages.railfence import railfence_decrypt
+from stages.reverse import reverse_text
 from stages.xor import repeating_xor
 
 Kind = Literal["text", "bytes"]
@@ -48,7 +53,16 @@ def caesar_shift_text(text: str, shift: int) -> str:
 
 def parse_pipeline(pipeline: str) -> list[str]:
     stages = [s.strip() for s in pipeline.split(">") if s.strip()]
-    valid = {"caesar", "bifid", "columnar", "double_columnar", "b64", "xor"}
+    valid = {
+        "caesar",
+        "bifid",
+        "columnar",
+        "double_columnar",
+        "b64",
+        "xor",
+        "railfence",
+        "reverse",
+    }
     bad = [s for s in stages if s not in valid]
     if bad:
         raise SystemExit(f"Unknown stages in pipeline: {bad}. Valid: {sorted(valid)}")
@@ -60,11 +74,13 @@ def axes_for_pipeline(stages: list[str], n_keys: int) -> list[StageAxis]:
     for st in stages:
         if st == "caesar":
             axes.append(StageAxis("caesar", 26))
+        elif st == "railfence":
+            axes.append(StageAxis("railfence", 29))  # 2-30 rails
         elif st in ("bifid", "columnar", "xor"):
             axes.append(StageAxis(st, n_keys))
         elif st == "double_columnar":
             axes.append(StageAxis("double_columnar", n_keys * n_keys))  # ordered pairs
-        elif st == "b64":
+        elif st in ("b64", "reverse"):
             continue
     return axes
 
@@ -85,12 +101,26 @@ _W_AXES: list[StageAxis] | None = None
 _W_BASES: list[int] | None = None
 _W_THRESHOLD: float = 0.0
 _W_MAX_HITS: int = 0
+_W_BIFID_ALPHABET: str = STANDARD_ALPHABET
 
 
 def init_worker(
-    ct: str, keys: list[str], stages: list[str], threshold: float, max_hits: int
+    ct: str,
+    keys: list[str],
+    stages: list[str],
+    threshold: float,
+    max_hits: int,
+    bifid_alphabet: str = STANDARD_ALPHABET,
 ) -> None:
-    global _W_CT, _W_KEYS, _W_STAGES, _W_AXES, _W_BASES, _W_THRESHOLD, _W_MAX_HITS
+    global \
+        _W_CT, \
+        _W_KEYS, \
+        _W_STAGES, \
+        _W_AXES, \
+        _W_BASES, \
+        _W_THRESHOLD, \
+        _W_MAX_HITS, \
+        _W_BIFID_ALPHABET
     _W_CT = ct
     _W_KEYS = keys
     _W_STAGES = stages
@@ -98,6 +128,7 @@ def init_worker(
     _W_BASES = [a.size for a in _W_AXES]
     _W_THRESHOLD = threshold
     _W_MAX_HITS = max_hits
+    _W_BIFID_ALPHABET = bifid_alphabet
 
 
 def run_one_combo(param_idxs: list[int]) -> tuple[float | None, Dict[str, Any] | None]:
@@ -122,7 +153,7 @@ def run_one_combo(param_idxs: list[int]) -> tuple[float | None, Dict[str, Any] |
             if kind != "text":
                 return (None, None)
             try:
-                payload = base64.b64decode(payload, validate=True)
+                payload = base64.b64decode(payload, validate=False)
             except Exception:
                 return (None, None)
             kind = "bytes"
@@ -137,6 +168,16 @@ def run_one_combo(param_idxs: list[int]) -> tuple[float | None, Dict[str, Any] |
             payload = caesar_shift_text(payload, shift)  # type: ignore[arg-type]
             continue
 
+        if st == "railfence":
+            rails_idx = param_idxs[axis_pos]
+            axis_pos += 1
+            num_rails = rails_idx + 2  # 0-28 maps to 2-30 rails
+            meta["railfence_rails"] = num_rails
+            if kind != "text":
+                return (None, None)
+            payload = railfence_decrypt(payload, num_rails)  # type: ignore[arg-type]
+            continue
+
         if st == "bifid":
             ki = param_idxs[axis_pos]
             axis_pos += 1
@@ -144,8 +185,10 @@ def run_one_combo(param_idxs: list[int]) -> tuple[float | None, Dict[str, Any] |
             meta["bifid_key"] = key
             if kind != "text":
                 return (None, None)
-            sq = build_keyed_square(B64_ALPHA, key, size=8)
-            payload = bifid_decrypt(payload, sq, period=len(payload), size=8)  # type: ignore[arg-type]
+            # Use configured bifid alphabet (default: standard 5x5)
+            payload = bifid_decrypt(
+                payload, key, period=len(payload), alphabet=_W_BIFID_ALPHABET
+            )  # type: ignore[arg-type]
             continue
 
         if st == "columnar":
@@ -179,6 +222,13 @@ def run_one_combo(param_idxs: list[int]) -> tuple[float | None, Dict[str, Any] |
             if kind != "bytes":
                 return (None, None)
             payload = repeating_xor(payload, key.encode("utf-8", "ignore"))  # type: ignore[arg-type]
+            continue
+
+        if st == "reverse":
+            meta["reverse_applied"] = True
+            if kind != "text":
+                return (None, None)
+            payload = reverse_text(payload)  # type: ignore[arg-type]
             continue
 
         raise ValueError(f"Unhandled stage: {st}")
@@ -242,6 +292,13 @@ def main() -> None:
         default=0,
         help="0 = use entire dictionary (WARNING: huge)",
     )
+    ap.add_argument(
+        "--bifid_alphabet",
+        type=str,
+        default="standard",
+        choices=["standard", "base64"],
+        help="Alphabet for bifid cipher: 'standard' (5x5, I/J combined) or 'base64' (8x8)",
+    )
     ap.add_argument("--dry_run", action="store_true")
     args = ap.parse_args()
 
@@ -251,7 +308,17 @@ def main() -> None:
     stages = parse_pipeline(args.pipeline)
     dictionary = load_dictionary(args.dictionary)
     keys = limit_keys(dictionary, args.key_limit)
-    ct = normalize_base64_alphabet(args.ciphertext, B64_ALPHA)
+
+    # Select bifid alphabet
+    bifid_alphabet = (
+        STANDARD_ALPHABET if args.bifid_alphabet == "standard" else BASE64_ALPHABET
+    )
+
+    # Normalize ciphertext based on bifid alphabet if bifid is in pipeline
+    if "bifid" in stages:
+        ct = normalize_base64_alphabet(args.ciphertext, bifid_alphabet)
+    else:
+        ct = normalize_base64_alphabet(args.ciphertext, BASE64_ALPHABET)
 
     axes = axes_for_pipeline(stages, len(keys))
     total = 1
@@ -274,7 +341,7 @@ def main() -> None:
 
     # Single-process path (still uses the same worker code for consistency)
     if args.workers <= 1:
-        init_worker(ct, keys, stages, args.threshold, args.max_hits)
+        init_worker(ct, keys, stages, args.threshold, args.max_hits, bifid_alphabet)
         t0 = time.time()
         attempts = 0
         hits_total = 0
@@ -306,7 +373,7 @@ def main() -> None:
     with mp.Pool(
         processes=args.workers,
         initializer=init_worker,
-        initargs=(ct, keys, stages, args.threshold, args.max_hits),
+        initargs=(ct, keys, stages, args.threshold, args.max_hits, bifid_alphabet),
     ) as pool:
         for i, (a, hits) in enumerate(
             pool.imap_unordered(worker_run_chunk, tasks, chunksize=1), start=1
