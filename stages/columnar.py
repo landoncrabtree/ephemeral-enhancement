@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, Iterator, Literal
-
-from .common import Candidate
 
 
 def _key_order(keyword: str) -> list[int]:
@@ -48,25 +45,3 @@ def columnar_decrypt(cipher: str, keyword: str) -> str:
             if r < len(cols[c]):
                 out.append(cols[c][r])
     return "".join(out)
-
-
-Direction = Literal["decrypt"]
-
-
-def columnar_bruteforce(
-    cands: Iterator[Candidate],
-    keys: Iterable[str],
-    *,
-    direction: Direction = "decrypt",
-) -> Iterator[Candidate]:
-    for c in cands:
-        if c.kind != "text":
-            continue
-        s = c.payload
-        assert isinstance(s, str)
-        for key in keys:
-            out = columnar_decrypt(s, key)
-            meta = dict(c.meta)
-            meta["columnar_key"] = key
-            meta["columnar_dir"] = direction
-            yield Candidate(out, "text", meta)

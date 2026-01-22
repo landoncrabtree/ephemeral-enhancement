@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from typing import Iterable, Iterator, Literal
-
-from .common import Candidate
-
 # Standard Bifid uses 5x5 square with 25 letters (I/J combined)
 STANDARD_ALPHABET = "ABCDEFGHIKLMNOPQRSTUVWXYZ"  # 25 chars, J omitted (use I for J)
 
@@ -181,44 +177,3 @@ def bifid_encrypt(
         result.insert(pos_idx, ch)
 
     return "".join(result)
-
-
-Direction = Literal["decrypt", "encrypt"]
-
-
-def bifid_bruteforce(
-    cands: Iterator[Candidate],
-    keys: Iterable[str],
-    *,
-    direction: Direction = "decrypt",
-    alphabet: str = STANDARD_ALPHABET,
-) -> Iterator[Candidate]:
-    """
-    Bruteforce Bifid cipher with different keys.
-
-    Args:
-        cands: Iterator of input candidates
-        keys: Iterable of keys to try
-        direction: "decrypt" or "encrypt"
-        alphabet: The alphabet to use (default: standard 25-char alphabet)
-
-    Yields:
-        Candidate objects with encrypted/decrypted payloads
-    """
-    for c in cands:
-        if c.kind != "text":
-            continue
-        s = c.payload
-        assert isinstance(s, str)
-        period = len(s)
-        for key in keys:
-            out = (
-                bifid_decrypt(s, key, period=period, alphabet=alphabet)
-                if direction == "decrypt"
-                else bifid_encrypt(s, key, period=period, alphabet=alphabet)
-            )
-            meta = dict(c.meta)
-            meta["bifid_key"] = key
-            meta["bifid_dir"] = direction
-            meta["bifid_alphabet"] = alphabet
-            yield Candidate(out, "text", meta)

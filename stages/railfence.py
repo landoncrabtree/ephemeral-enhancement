@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from typing import Iterator
-
-from .common import Candidate
-
 
 def railfence_decrypt(cipher: str, num_rails: int) -> str:
     """
@@ -42,24 +38,3 @@ def railfence_decrypt(cipher: str, num_rails: int) -> str:
                 cipher_idx += 1
 
     return "".join(result)
-
-
-def railfence_bruteforce(
-    cands: Iterator[Candidate],
-    *,
-    min_rails: int = 2,
-    max_rails: int = 30,
-) -> Iterator[Candidate]:
-    """
-    For each text candidate, try all rail counts from min_rails to max_rails.
-    """
-    for c in cands:
-        if c.kind != "text":
-            continue
-        s = c.payload
-        assert isinstance(s, str)
-        for num_rails in range(min_rails, max_rails + 1):
-            out = railfence_decrypt(s, num_rails)
-            meta = dict(c.meta)
-            meta["railfence_rails"] = num_rails
-            yield Candidate(out, "text", meta)
