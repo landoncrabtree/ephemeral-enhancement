@@ -73,30 +73,47 @@ bo3_ciphers/
 ### Requirements
 
 - Python 3.10+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
-### Setup
+### Setup with uv (Recommended)
+
+```bash
+# Install uv if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Clone or download the repository
+cd ephemeral-enhancement
+uv run run_pipeline --pipeline "caesar" --ciphertext "KHOOR ZRUOG"
+```
+
+### Setup with pip
 
 ```bash
 # Clone or download the repository
 cd ephemeral-enhancement
-
-# Install pytest (optional, for development)
-pip install pytest
-
-# Verify installation
-python run_pipeline.py --pipeline "caesar" --dry_run
+pip install -e .
+python3 run_pipeline.py --pipeline "caesar" --ciphertext "KHOOR ZRUOG"
 ```
 
 ## Usage
 
 ### Basic Usage
 
+**With uv (recommended):**
+```bash
+uv run run_pipeline \
+    --pipeline "caesar>bifid>b64>xor" \
+    --ciphertext "YOUR_CIPHERTEXT_HERE" \
+    --key_limit 100 \
+    --threshold 1.7
+```
+
+**With Python:**
 ```bash
 python run_pipeline.py \
     --pipeline "caesar>bifid>b64>xor" \
     --ciphertext "YOUR_CIPHERTEXT_HERE" \
     --key_limit 100 \
-    --threshold 0.8
+    --threshold 1.7
 ```
 
 ### Command-Line Arguments
@@ -177,6 +194,44 @@ When a potential decryption is found, the output shows:
 - `meta`: Dictionary showing which keys/parameters were used at each stage
 
 Use these parameters to manually decrypt the ciphertext or verify the result.
+
+## Development
+
+### Running Tests
+
+**With uv:**
+```bash
+# Run all tests
+uv run pytest test_stages.py -v
+
+# Run specific test class
+uv run pytest test_stages.py::TestCaesarCipher -v
+
+# Run with verbose output
+uv run pytest test_stages.py -vv
+```
+
+**With Python:**
+```bash
+# Install pytest first
+pip install pytest
+
+# Run tests
+pytest test_stages.py -v
+```
+
+### Project Structure
+
+The project uses a modular architecture:
+- **`core/`** - Pipeline execution logic (args, executor, worker, parallel, utils)
+- **`stages/`** - Cipher implementations (pure functions)
+- **`docs/`** - Documentation (architecture, contributing, cipher solutions)
+
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for detailed architecture documentation.
+
+### Contributing
+
+Want to add a new cipher stage? See **[docs/CONTRIBUTING/ADDING_A_STAGE.md](docs/CONTRIBUTING/ADDING_A_STAGE.md)** for a comprehensive guide.
 
 ## Performance Tips
 

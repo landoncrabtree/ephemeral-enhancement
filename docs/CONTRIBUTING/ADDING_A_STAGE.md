@@ -499,30 +499,29 @@ def _execute_double_xor(self, payload, kind, param_idxs, axis_pos, meta):
 
 ## Testing
 
-### Running Tests
+### Running Tests (with uv)
 
 ```bash
-# Run all tests
-pytest test_stages.py -v
+uv run pytest test_stages.py -v
 
 # Run tests for specific stage
-pytest test_stages.py::TestYourCipher -v
+uv run pytest test_stages.py::TestYourCipher -v
 
 # Run with coverage
-pytest test_stages.py --cov=stages --cov-report=html
+uv run pytest test_stages.py --cov=stages --cov-report=html
 ```
 
 ### Pipeline Testing
 
 ```bash
 # Test stage recognition
-python run_pipeline.py --pipeline "your_stage" --ciphertext "TEST" --threshold 1.0
+uv run run_pipeline --pipeline "your_stage" --ciphertext "TEST" --threshold 1.0
 
 # Test in combination
-python run_pipeline.py --pipeline "caesar>your_stage>b64" --ciphertext "..." --threshold 1.5
+uv run run_pipeline --pipeline "caesar>your_stage>b64" --ciphertext "..." --threshold 1.5
 
 # Test with limited keys for faster testing
-python run_pipeline.py --pipeline "your_stage" --ciphertext "..." --key_limit 10
+uv run run_pipeline --pipeline "your_stage" --ciphertext "..." --key_limit 10
 ```
 
 ---

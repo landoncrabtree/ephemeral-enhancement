@@ -1,0 +1,34 @@
+[project]
+name = "ephemeral-enhancements"
+version = "0.1.0"
+description = "Multi-stage cipher brute-forcing pipeline for BO3 Zombies ciphers"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0"
+]
+
+[project.scripts]
+run_pipeline = "run_pipeline:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core", "stages"]
+include = [
+    "run_pipeline.py",
+    "dictionary.txt",
+    "common.txt",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
