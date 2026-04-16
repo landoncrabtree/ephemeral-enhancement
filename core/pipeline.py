@@ -100,11 +100,11 @@ def axes_for_pipeline(
     axes: list[StageAxis] = []
     for st in stages:
         if st == "affine":
-            # 12 valid 'a' values × 26 'b' values = 312
-            from stages.affine import VALID_A
-            axes.append(StageAxis("affine", len(VALID_A) * 26))
+            from stages.affine import N_AFFINE_TOTAL
+            axes.append(StageAxis("affine", N_AFFINE_TOTAL))
         elif st == "caesar":
-            axes.append(StageAxis("caesar", 26))
+            from stages.caesar import N_CAESAR_CHARSET_MODES
+            axes.append(StageAxis("caesar", 26 * N_CAESAR_CHARSET_MODES))
         elif st == "railfence":
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
         elif st in ("bifid", "columnar", "myszkowski", "redefense", "xor"):

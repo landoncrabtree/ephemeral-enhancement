@@ -10,9 +10,14 @@ from __future__ import annotations
 import base64
 from typing import Any, Dict, Literal
 
-from stages.affine import VALID_A, affine_decrypt
+from stages.affine import (
+    VALID_A_BY_MODE,
+    MOD_BY_MODE,
+    N_AFFINE_COMBOS_BY_MODE,
+    affine_decrypt,
+)
 from stages.bifid import bifid_decrypt
-from stages.caesar import caesar_shift_text
+from stages.caesar import N_CAESAR_CHARSET_MODES, caesar_shift_text
 from stages.columnar import columnar_decrypt
 from stages.common import combined_score, printable_ratio
 from stages.double_columnar import double_columnar_decrypt
@@ -200,9 +205,13 @@ class StageExecutor:
         if kind != "text":
             return None
 
-        shift = param_idxs[axis_pos]
+        idx = param_idxs[axis_pos]
+        charset_mode = idx // 26
+        shift = idx % 26
+        charset_names = ["alpha", "alphanumeric", "all_printable"]
         meta["caesar_shift"] = shift
-        result = caesar_shift_text(payload, shift)  # type: ignore[arg-type]
+        meta["caesar_charset"] = charset_names[charset_mode]
+        result = caesar_shift_text(payload, shift, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_railfence(
@@ -298,11 +307,25 @@ class StageExecutor:
             return None
 
         idx = param_idxs[axis_pos]
-        a = VALID_A[idx // 26]
-        b = idx % 26
+        # Decompose: iterate through charset modes, find which mode this idx falls in
+        charset_mode = 0
+        remaining = idx
+        for mode_idx, combo_count in enumerate(N_AFFINE_COMBOS_BY_MODE):
+            if remaining < combo_count:
+                charset_mode = mode_idx
+                break
+            remaining -= combo_count
+
+        valid_a = VALID_A_BY_MODE[charset_mode]
+        mod = MOD_BY_MODE[charset_mode]
+        a = valid_a[remaining // mod]
+        b = remaining % mod
+
+        charset_names = ["alpha", "alphanumeric", "all_printable"]
         meta["affine_a"] = a
         meta["affine_b"] = b
-        result = affine_decrypt(payload, a, b)  # type: ignore[arg-type]
+        meta["affine_charset"] = charset_names[charset_mode]
+        result = affine_decrypt(payload, a, b, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_myszkowski(

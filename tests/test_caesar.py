@@ -57,3 +57,22 @@ class TestCaesarCipher:
         """Digits and letters shift independently, symbols preserved."""
         result = caesar_shift_text("abc123/+=", 1)
         assert result == "bcd234/+="
+
+    def test_alpha_only_mode(self):
+        """Mode 0: only shifts letters, digits untouched."""
+        result = caesar_shift_text("abc123", 1, charset_mode=0)
+        assert result == "bcd123"
+
+    def test_alphanumeric_mode(self):
+        """Mode 1 (default): shifts letters and digits."""
+        result = caesar_shift_text("abc789", 1, charset_mode=1)
+        assert result == "bcd890"
+
+    def test_all_printable_mode(self):
+        """Mode 2: shifts all printable ASCII as one alphabet."""
+        # Space (32) + 1 = ! (33)
+        result = caesar_shift_text(" ", 1, charset_mode=2)
+        assert result == "!"
+        # ~ (126) + 1 wraps to space (32)
+        result = caesar_shift_text("~", 1, charset_mode=2)
+        assert result == " "
