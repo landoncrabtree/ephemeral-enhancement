@@ -2,6 +2,28 @@ from __future__ import annotations
 
 import math
 
+# Charset modes for transposition:
+# 0 = alpha: only transpose ASCII letters; digits/spaces/punct stay in place
+# 1 = alphanumeric: transpose ASCII letters + digits; spaces/punct stay in place
+# 2 = all: transpose every character (original behavior)
+N_COLUMNAR_CHARSET_MODES = 3
+CHARSET_ALPHA = 0
+CHARSET_ALPHANUMERIC = 1
+CHARSET_ALL = 2
+
+_ASCII_ALPHA = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+_ASCII_DIGIT = set("0123456789")
+_ASCII_ALNUM = _ASCII_ALPHA | _ASCII_DIGIT
+
+
+def _is_transposable(ch: str, charset_mode: int) -> bool:
+    """Return True if the character should be transposed in the given mode."""
+    if charset_mode == CHARSET_ALL:
+        return True
+    if charset_mode == CHARSET_ALPHANUMERIC:
+        return ch in _ASCII_ALNUM
+    return ch in _ASCII_ALPHA
+
 
 def _key_order(keyword: str) -> list[int]:
     pairs = sorted(
@@ -13,7 +35,8 @@ def _key_order(keyword: str) -> list[int]:
     return order
 
 
-def columnar_decrypt(cipher: str, keyword: str) -> str:
+def _columnar_decrypt_raw(cipher: str, keyword: str) -> str:
+    """Core columnar decryption on a flat string (no charset filtering)."""
     k = len(keyword)
     if k <= 1:
         return cipher
@@ -45,3 +68,38 @@ def columnar_decrypt(cipher: str, keyword: str) -> str:
             if r < len(cols[c]):
                 out.append(cols[c][r])
     return "".join(out)
+
+
+def columnar_decrypt(cipher: str, keyword: str, charset_mode: int = CHARSET_ALL) -> str:
+    """Decrypt columnar transposition cipher.
+
+    Args:
+        cipher: The ciphertext to decrypt.
+        keyword: The keyword defining column order.
+        charset_mode: Which characters to transpose (0=alpha, 1=alnum, 2=all).
+            In alpha/alnum modes, non-transposable characters stay at their
+            original positions; only the transposable characters are rearranged.
+    """
+    if charset_mode == CHARSET_ALL:
+        return _columnar_decrypt_raw(cipher, keyword)
+
+    # Extract transposable chars and their positions
+    trans_chars = []
+    trans_positions = []
+    for i, c in enumerate(cipher):
+        if _is_transposable(c, charset_mode):
+            trans_chars.append(c)
+            trans_positions.append(i)
+
+    if not trans_chars:
+        return cipher
+
+    # Decrypt only the transposable characters
+    decrypted = _columnar_decrypt_raw("".join(trans_chars), keyword)
+
+    # Rebuild: put decrypted chars back at transposable positions
+    result = list(cipher)
+    for i, pos in enumerate(trans_positions):
+        if i < len(decrypted):
+            result[pos] = decrypted[i]
+    return "".join(result)

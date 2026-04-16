@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stages.key_derivation import N_KEY_DERIVATION_MODES
+from stages.columnar import N_COLUMNAR_CHARSET_MODES
 from stages.mcrypt_registry import (
     N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
@@ -122,12 +123,14 @@ def axes_for_pipeline(
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
         elif st == "scytale":
             axes.append(StageAxis("scytale", 99))  # 2-100 columns
-        elif st in ("bifid", "columnar", "myszkowski", "redefense", "xor",
+        elif st in ("bifid", "myszkowski", "redefense", "xor",
                     "vigenere", "beaufort", "autokey", "porta",
                     "vigenere52", "beaufort52", "autokey52", "porta52"):
             axes.append(StageAxis(st, k))
+        elif st == "columnar":
+            axes.append(StageAxis("columnar", k * N_COLUMNAR_CHARSET_MODES))
         elif st == "double_columnar":
-            axes.append(StageAxis("double_columnar", k * k))
+            axes.append(StageAxis("double_columnar", k * k * N_COLUMNAR_CHARSET_MODES))
         elif is_mcrypt_stage(st):
             info = get_stage_info(st)
             assert info is not None

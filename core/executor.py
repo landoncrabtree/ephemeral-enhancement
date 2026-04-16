@@ -18,7 +18,7 @@ from stages.affine import (
 )
 from stages.bifid import bifid_decrypt
 from stages.caesar import N_CAESAR_CHARSET_MODES, caesar_shift_text
-from stages.columnar import columnar_decrypt
+from stages.columnar import N_COLUMNAR_CHARSET_MODES, columnar_decrypt
 from stages.common import combined_score, printable_ratio
 from stages.double_columnar import double_columnar_decrypt
 from stages.key_derivation import DERIVATION_NAMES, N_KEY_DERIVATION_MODES, derive_key
@@ -377,9 +377,14 @@ class StageExecutor:
             return None
 
         ki_combined = param_idxs[axis_pos]
-        key = self._get_effective_key(ki_combined)
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        charset_mode = ki_combined // n_eff
+        key_idx = ki_combined % n_eff
+        key = self._get_effective_key(key_idx)
+        charset_labels = ["alpha", "alphanumeric", "all"]
         meta["columnar_key"] = key
-        result = columnar_decrypt(payload, key)  # type: ignore[arg-type]
+        meta["columnar_charset"] = charset_labels[charset_mode]
+        result = columnar_decrypt(payload, key, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_double_columnar(
@@ -395,12 +400,17 @@ class StageExecutor:
             return None
 
         pi = param_idxs[axis_pos]
-        n = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
-        k1 = self._get_effective_key(pi // n)
-        k2 = self._get_effective_key(pi % n)
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        n_key_pairs = n_eff * n_eff
+        charset_mode = pi // n_key_pairs
+        key_pair_idx = pi % n_key_pairs
+        k1 = self._get_effective_key(key_pair_idx // n_eff)
+        k2 = self._get_effective_key(key_pair_idx % n_eff)
+        charset_labels = ["alpha", "alphanumeric", "all"]
         meta["double_columnar_key1"] = k1
         meta["double_columnar_key2"] = k2
-        result = double_columnar_decrypt(payload, k1, k2)  # type: ignore[arg-type]
+        meta["double_columnar_charset"] = charset_labels[charset_mode]
+        result = double_columnar_decrypt(payload, k1, k2, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_affine(
