@@ -47,23 +47,23 @@ BLOCK_MODES = ["ecb", "cbc", "cfb", "ofb", "nofb", "ctr"]
 IV_MODES = {"cbc", "cfb", "ofb", "nofb", "ctr"}
 
 # Number of key padding strategies
-# 0 = as-is: pass key to libmcrypt (it auto-pads short keys with \x00)
-# 1 = ascii-0-pad: pad key with ASCII "0" (0x30) to max_key_size
+# 0 = null-padded: pass key to libmcrypt (it auto-pads short keys with \x00)
+# 1 = zero-string-padded: pad key with ASCII "0" (0x30) to nearest valid key size
 # Both truncate first if key > max_key_size
 N_KEY_PAD_STRATEGIES = 2
-KEY_PAD_ASIS = 0
-KEY_PAD_ASCII_ZERO = 1
+KEY_PAD_NULL = 0
+KEY_PAD_ZERO_STRING = 1
 
 # Number of IV strategies (only applies to modes that need an IV)
-# 0 = null bytes: IV is 0x00 repeated to iv_size
-# 1 = ASCII zero: IV is "0" (0x30) repeated to iv_size
-# 2 = key + null pad: IV is key[:iv_size] padded with 0x00
-# 3 = key + ascii-0 pad: IV is key[:iv_size] padded with "0" (0x30)
+# 0 = null: IV is 0x00 repeated to iv_size
+# 1 = zero-string: IV is "0" (0x30) repeated to iv_size
+# 2 = key-null-padded: IV is key[:iv_size] padded with 0x00
+# 3 = key-zero-string-padded: IV is key[:iv_size] padded with "0" (0x30)
 N_IV_STRATEGIES = 4
-IV_NULL_BYTES = 0
-IV_ASCII_ZERO = 1
+IV_NULL = 0
+IV_ZERO_STRING = 1
 IV_KEY_NULL_PAD = 2
-IV_KEY_ASCII_ZERO_PAD = 3
+IV_KEY_ZERO_STRING_PAD = 3
 
 
 @dataclass(frozen=True)

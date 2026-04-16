@@ -102,17 +102,17 @@ After truncation, one of 2 padding strategies is applied:
 
 | Strategy | Name | Behavior |
 |---|---|---|
-| 0 | `as-is` | Pass key directly to libmcrypt. libmcrypt internally zero-pads short keys with `\x00` to the nearest valid key size. |
-| 1 | `ascii-0-pad` | Pad key with ASCII `"0"` (0x30) to `max_key_size`. |
+| 0 | `null-padded` | Pass key directly to libmcrypt. libmcrypt internally zero-pads short keys with `\x00` to the nearest valid key size. |
+| 1 | `zero-string-padded` | Pad key with ASCII `"0"` (0x30) to nearest valid key size. |
 
 **Example**: key `"Zombies"` (7 bytes) with `rijndael-128` (valid key sizes: 16, 24, 32):
 
 | Strategy | Result | Effective Cipher |
 |---|---|---|
-| as-is | `5a6f6d62696573` (7 bytes) → libmcrypt pads with `\x00` to nearest valid size → 16 bytes | AES-128 |
-| ascii-0-pad | `5a6f6d62696573303030...30` padded with `"0"` to max_key_size → 32 bytes | AES-256 |
+| null-padded | `5a6f6d62696573` (7 bytes) → libmcrypt pads with `\x00` to nearest valid size → 16 bytes | AES-128 |
+| zero-string-padded | `5a6f6d62696573303030...30` padded with `"0"` to nearest valid size → 16 bytes | AES-128 |
 
-**Important**: libmcrypt pads short keys to the **nearest valid key size**, not to `max_key_size`. For `rijndael-128`, a 7-byte key becomes 16 bytes (AES-128), while our ascii-0-pad strategy fills to 32 bytes (AES-256). These produce completely different ciphertext — both are worth trying.
+**Important**: Both strategies pad short keys to the **nearest valid key size**, not to `max_key_size`. For `rijndael-128`, a 7-byte key becomes 16 bytes (AES-128). Longer derived keys (e.g. sha256 = 32 bytes) naturally target AES-256.
 
 ### Total Key Variants per Dictionary Word
 
@@ -127,20 +127,20 @@ Modes that require an IV (CBC, CFB, OFB, nOFB, CTR) try 4 IV strategies. ECB and
 | Strategy | Name | IV Value |
 |---|---|---|
 | 0 | `null` | `\x00` repeated to `iv_size` |
-| 1 | `ascii-0` | `"0"` (0x30) repeated to `iv_size` |
-| 2 | `key+null` | Derived key bytes truncated to `iv_size`, padded with `\x00` if short |
-| 3 | `key+ascii0` | Derived key bytes truncated to `iv_size`, padded with `"0"` (0x30) if short |
+| 1 | `zero-string` | `"0"` (0x30) repeated to `iv_size` |
+| 2 | `key-null-padded` | Derived key bytes truncated to `iv_size`, padded with `\x00` if short |
+| 3 | `key-zero-string-padded` | Derived key bytes truncated to `iv_size`, padded with `"0"` (0x30) if short |
 
 **Note**: The key-derived IV strategies (2, 3) use the **final derived key** (after derivation + padding), not the raw dictionary word.
 
-**Example**: key `"Zombies"` (as-is, 7 bytes) with `iv_size=8`:
+**Example**: key `"Zombies"` (null-padded, 7 bytes) with `iv_size=8`:
 
 | Strategy | IV (hex) |
 |---|---|
 | null | `0000000000000000` |
-| ascii-0 | `3030303030303030` |
-| key+null | `5a6f6d6269657300` |
-| key+ascii0 | `5a6f6d6269657330` |
+| zero-string | `3030303030303030` |
+| key-null-padded | `5a6f6d6269657300` |
+| key-zero-string-padded | `5a6f6d6269657330` |
 
 ### Total Combinations per Dictionary Word
 

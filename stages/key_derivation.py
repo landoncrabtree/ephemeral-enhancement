@@ -17,6 +17,13 @@ MODE_MD5 = 1
 MODE_SHA1 = 2
 MODE_SHA256 = 3
 
+DERIVATION_NAMES = {
+    MODE_RAW: "raw",
+    MODE_MD5: "md5",
+    MODE_SHA1: "sha1",
+    MODE_SHA256: "sha256",
+}
+
 
 def derive_key(word: str, mode: int) -> bytes:
     """

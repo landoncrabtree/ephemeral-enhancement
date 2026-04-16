@@ -42,21 +42,6 @@ Words: `Zombie`, `Zombies`, `TheGiant`, `TryThis` (with --vary-case: lowercase, 
 
 † Affine limited to 20 stages: AES (128/192/256 ECB+CBC), DES ECB+CBC, 3DES ECB+CBC, Blowfish ECB+CBC, Twofish ECB+CBC, Arcfour, CAST-128 ECB+CBC, Serpent ECB+CBC, XTEA ECB.
 
-### Pipeline 8r Hits (caesar>b64>{mcrypt}, threshold ≥ 1.0)
-
-All 18 hits share **caesar shift=7, all_printable charset, sha256 key derivation**. Scores are low (1.0–1.7) — likely noise rather than valid decryptions.
-
-| Score | Algorithm | Key | Key Pad | IV | Notes |
-|-------|-----------|-----|---------|-----|-------|
-| 1.686 | enigma | TRYTHIS | as-is / ascii-0 | none | Stream cipher, 2 hits |
-| 1.675 | des-cbc | TRYTHIS | as-is / ascii-0 | key+null / key+ascii0 | 4 hits (sha256 key truncated to 8) |
-| 1.666 | rc2-cbc | Trythis | as-is / ascii-0 | null | 2 hits |
-| 1.666 | rc2-ecb | Trythis | as-is / ascii-0 | none | 2 hits |
-| 1.506 | xtea-ctr | Trythis | as-is / ascii-0 | null | 2 hits |
-| 1.506 | xtea-nofb | Trythis | as-is / ascii-0 | null | 2 hits |
-| 1.000 | xtea-ctr | zombies | as-is / ascii-0 | ascii-0 | 2 hits |
-| 1.000 | xtea-nofb | zombies | as-is / ascii-0 | ascii-0 | 2 hits |
-
 ### Summary
 
 - **Total pipeline runs (v1+v2):** 1,802

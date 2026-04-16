@@ -21,13 +21,13 @@ from stages.caesar import N_CAESAR_CHARSET_MODES, caesar_shift_text
 from stages.columnar import columnar_decrypt
 from stages.common import combined_score, printable_ratio
 from stages.double_columnar import double_columnar_decrypt
-from stages.key_derivation import N_KEY_DERIVATION_MODES, derive_key
+from stages.key_derivation import DERIVATION_NAMES, N_KEY_DERIVATION_MODES, derive_key
 from stages.mcrypt_registry import (
-    IV_ASCII_ZERO,
-    IV_KEY_ASCII_ZERO_PAD,
     IV_KEY_NULL_PAD,
-    IV_NULL_BYTES,
-    KEY_PAD_ASCII_ZERO,
+    IV_KEY_ZERO_STRING_PAD,
+    IV_NULL,
+    IV_ZERO_STRING,
+    KEY_PAD_ZERO_STRING,
     N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
     get_stage_info,
@@ -61,9 +61,9 @@ def _nearest_valid_key_size(key_len: int, info: "McryptStageInfo") -> int:
     return info.max_key_size
 
 
-def _plaintext_preview(data: bytes, max_len: int = 40) -> str:
-    """Create a short printable preview of decrypted bytes."""
-    stripped = data.rstrip(b"\x00")[:max_len]
+def _plaintext_preview(data: bytes) -> str:
+    """Create a printable preview of decrypted bytes."""
+    stripped = data.rstrip(b"\x00")
     return stripped.decode("utf-8", errors="replace")
 
 
@@ -485,41 +485,40 @@ class StageExecutor:
             key = key[: info.max_key_size]
 
         # Key padding strategy:
-        # 0 = as-is: libmcrypt auto-pads short keys with \x00 to nearest valid size
-        # 1 = ascii-0-pad: pad with ASCII "0" (0x30) to nearest valid key size
-        #     (mirrors libmcrypt's rounding, but with "0" instead of \x00)
-        if key_pad_idx == KEY_PAD_ASCII_ZERO:
+        # 0 = null-padded: libmcrypt auto-pads short keys with \x00 to nearest valid size
+        # 1 = zero-string-padded: pad with ASCII "0" (0x30) to nearest valid key size
+        if key_pad_idx == KEY_PAD_ZERO_STRING:
             target_size = _nearest_valid_key_size(len(key), info)
             if len(key) < target_size:
                 key = key + b"0" * (target_size - len(key))
-            meta[f"{stage}_key_pad"] = "ascii-0"
+            meta[f"{stage}_key_pad"] = "zero-string-padded"
         else:
-            meta[f"{stage}_key_pad"] = "as-is"
+            meta[f"{stage}_key_pad"] = "null-padded"
 
         # IV strategy
         iv: bytes | None = None
         iv_label = "none"
         if info.needs_iv:
-            if iv_idx == IV_NULL_BYTES:
+            if iv_idx == IV_NULL:
                 iv = b"\x00" * info.iv_size
                 iv_label = "null"
-            elif iv_idx == IV_ASCII_ZERO:
+            elif iv_idx == IV_ZERO_STRING:
                 iv = b"0" * info.iv_size
-                iv_label = "ascii-0"
+                iv_label = "zero-string"
             elif iv_idx == IV_KEY_NULL_PAD:
                 iv = key[: info.iv_size]
                 if len(iv) < info.iv_size:
                     iv = iv + b"\x00" * (info.iv_size - len(iv))
-                iv_label = "key+null"
-            elif iv_idx == IV_KEY_ASCII_ZERO_PAD:
+                iv_label = "key-null-padded"
+            elif iv_idx == IV_KEY_ZERO_STRING_PAD:
                 iv = key[: info.iv_size]
                 if len(iv) < info.iv_size:
                     iv = iv + b"0" * (info.iv_size - len(iv))
-                iv_label = "key+ascii0"
+                iv_label = "key-zero-string-padded"
 
         # Record metadata
         meta[f"{stage}_key"] = key_str
-        meta[f"{stage}_deriv"] = deriv_idx
+        meta[f"{stage}_deriv"] = DERIVATION_NAMES.get(deriv_idx, f"unknown-{deriv_idx}")
         meta[f"{stage}_iv"] = iv_label
 
         result = mcrypt_decrypt_stage(
@@ -573,7 +572,7 @@ class StageExecutor:
                 payload_bytes = payload.encode("utf-8")  # type: ignore[union-attr]
                 score = combined_score(payload_bytes, self.common_words)
                 if score >= threshold:
-                    meta["preview"] = payload[:40]  # type: ignore[index]
+                    meta["preview"] = payload  # type: ignore[index]
                     return (score, meta)
             except Exception:
                 return (None, None)
