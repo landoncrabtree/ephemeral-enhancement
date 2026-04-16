@@ -49,12 +49,26 @@ PLAIN TEXT
  
 ## Rev-5 (Unsolved)
 
-    UNSOLVED
+    Cipher type: RC2-CFB, Blowfish-CFB, Loki97-CFB
+    Key: Zombies
+    Method: Decode using RC2-CFB, then reverse, then Blowfish-CFB, then Loki97-CFB
+
+PLAIN TEXT
+
+    August, 1946. OSS report final T-7. All of the Group 935 and Division 9 facilities we were able to procure have been dismantled and crated. We have 215 scientists heading back to the United States for orientation.
+    July, 1947. OSS asset transfer request. We are requesting that Dr. Shuster be transferred to Broomstick and the Titan Project because of extensive intimacy with Group 935’s long range rockets. If approved, we will have him onsite at White Sands for the first Titan Project test as an observer. As you know it is imperative that we advance Titan quickly and reach the anomaly before the Russians. 
+
 
  
 ## Rev-6 (Unsolved)
 
-    UNSOLVED
+    Cipher type: DES-CFB, Bacon Cipher
+    Key: Zombies
+    Method: Decode using DES-CFB, then Bacon Cipher
+
+PLAIN TEXT
+
+    SAMANTHA FINALLY LEFT THE HOUSE TODAY SHE WAS THE LAST ONE I UNDERSTAND HOW HARD IT WAS FOR HER BUT SHE KNOWS THIS WORLD IS BIG AND BEAUTIFUL AND NEEDS TO BE EXPLORED I AM SURE SHE WILL SEE THE OTHERS ALONG HER TRAVELS HONESTLY I WILL MISS HER THE MOST I MUST ADMIT IT LOOKS LIKE I AM NOT NEEDED ANYMORE RETIREMENT HERE I COME IT S TIME TO PACK UP ALL THE CHALK BOXES AND MACHINES AND GO BEHIND THE SCENES GO TO THAT GODDAMN WHITE SAND BEACH I HAVE THOUGHT ABOUT FOR AGES AND CHILL I MEAN NOTHING CAN GO WRONG NOW SIGNING OFF M 
 
  
 ## Rev-7 (Unsolved)

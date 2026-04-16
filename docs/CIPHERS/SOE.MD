@@ -24,6 +24,7 @@ PLAIN TEXT
 ## SoE-3
 
     Cipher type: Four-square
+    Key: AOGNKZBCPSEWFMUHXDIRTLVYQ / HVWFCTGQMZPESYLANRBXOUIDK
     Solved/Fixed by: /u/MrRoflWaffles
 
 PLAIN TEXT
@@ -44,6 +45,7 @@ PLAIN TEXT
 ## SoE-5
 
     Cipher type: Straddling Checkerboard
+    Key: WVHBIGQROSTJNXFKMCPDAZLUYE
     Spare positions: 3 & 7
     Solved by: /u/MrRoflWaffles
 

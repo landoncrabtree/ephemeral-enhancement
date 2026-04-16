@@ -3,6 +3,7 @@
 ## ZnS-1
 
     Cipher type: T-9
+    Key: +81
     Solved by: Dopplegänger
 
 PLAIN TEXT
@@ -67,6 +68,7 @@ PLAIN TEXT
     Cipher type: Keyed Caesar
     Shift: 15
     Key: Aurora Borealis
+    Alphabet: AUROBELISCDFGHJKMNPQTVWXYZ
     Solved as Cryptogram by: /u/Lizizadolphin
 
 PLAIN TEXT

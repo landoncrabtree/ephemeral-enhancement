@@ -69,6 +69,7 @@ PLAIN TEXT
 ## DE-7
 
     Cipher type: 2-1 AMSCO
+    Key: 198346572
     Solved by: /u/certainpersonio
 
 PLAIN TEXT
@@ -89,6 +90,7 @@ PLAIN TEXT
 ## DE-9
 
     Cipher type: Trithemius
+    Key: 198346572
     Solved by: /u/Nieno69
 
 PLAIN TEXT
@@ -99,6 +101,7 @@ PLAIN TEXT
 ## DE-10
 
     Cipher type: Übchi
+    Key: TheCastle
     Solved by: /u/Randomiser
 
 PLAIN TEXT

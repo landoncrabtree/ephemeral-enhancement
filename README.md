@@ -8,35 +8,42 @@ This project provides a comprehensive framework for decrypting classical ciphers
 
 ### Key Features
 
-- **Multi-stage pipelines**: Chain multiple cipher algorithms together (e.g., `caesar>bifid>b64>xor`)
+- **Multi-stage pipelines**: Chain multiple cipher algorithms together (e.g., `caesar>b64>rijndael-128-cbc`)
 - **High performance**: Multiprocessing support for parallel brute-forcing
 - **Smart filtering**: English text scoring using frequency analysis and word matching
 - **Progress tracking**: Real-time progress updates and performance metrics
 - **Modular design**: Easy to add new cipher stages
-- **Well-tested**: Comprehensive test suite
+- **Well-tested**: Comprehensive test suite (130+ tests)
 
 ### Supported Ciphers
 
-- **Caesar**: Simple shift cipher (26 possible shifts)
+**Classical (text-based):**
+- **Affine**: Brute-forces all valid (a,b) pairs across 3 charset modes (alpha/alphanumeric/all-printable) — 9,012 combos
+- **Caesar**: Shift cipher across 3 charset modes (alpha/alphanumeric/all-printable) — 78 combos
 - **Bifid**: Polybius square cipher with keyed alphabet (standard 5×5 or base64 8×8)
 - **Columnar Transposition**: Column-based permutation cipher
 - **Double Columnar**: Two-stage columnar transposition
+- **Myszkowski Transposition**: Columnar variant where duplicate key letters share ranks
 - **Railfence**: Zigzag pattern cipher (2-30 rails)
+- **Redefense**: Keyed rail fence with keyword-ordered rail reading
 - **XOR**: Repeating-key XOR cipher
 - **Base64**: Standard base64 decoding
 - **Reverse**: Simple text reversal
-- **Symmetric (bytes input, use after b64)**: All **libmcrypt** algorithms via native C bindings — **Rijndael (AES-128/192/256)**, **DES**, **3DES**, **Blowfish**, **Twofish**, **Serpent**, **CAST-128/256**, **RC2**, **GOST**, **Loki97**, **Saferplus**, **XTEA**, **RC4 (Arcfour)**, **WAKE**, **Enigma**, and more. All block cipher modes supported: ECB, CBC, CFB, OFB, nOFB, CTR. Uses PHP `mcrypt_decrypt()` compatible semantics (zero-padding, key handling). Use pipelines like `b64>rijndael-128-ecb` or `b64>des-cbc`.
+
+**Symmetric (bytes input, use after b64):**
+
+All **libmcrypt** algorithms via native C bindings — **Rijndael (AES-128/192/256)**, **DES**, **3DES**, **Blowfish**, **Twofish**, **Serpent**, **CAST-128/256**, **RC2**, **GOST**, **Loki97**, **Saferplus**, **XTEA**, **RC4 (Arcfour)**, **WAKE**, **Enigma**, and more. All block cipher modes supported: ECB, CBC, CFB, OFB, nOFB, CTR. Uses PHP `mcrypt_decrypt()` compatible semantics (zero-padding, key handling). Use pipelines like `b64>rijndael-128-ecb` or `b64>des-cbc`.
 
 ## Project Structure
 
 ```
 bo3_ciphers/
 ├── README.md                 # This file
+├── ATTEMPTS.md              # Brute-force attempt log
 ├── run_pipeline.py          # Main entry point
 ├── dictionary.txt           # Dictionary of keys to try
-├── common.txt               # Common English words for scoring
+├── test_dict.txt            # Short test dictionary (4 words × 4 cases)
 ├── pytest.ini              # Pytest configuration
-├── test_stages.py          # Unit tests for all cipher stages
 │
 ├── core/                   # Core pipeline logic (modular architecture)
 │   ├── __init__.py        # Package exports
@@ -50,27 +57,48 @@ bo3_ciphers/
 ├── stages/                 # Cipher implementations
 │   ├── __init__.py
 │   ├── common.py          # Shared utilities (scoring, printable ratio)
-│   ├── key_derivation.py  # Key derivation from wordlist (raw, pad, md5, sha1, etc.)
+│   ├── key_derivation.py  # Key derivation (raw, pad, md5, sha1, sha256, all_zeros)
 │   ├── mcrypt_wrapper.py  # Python ctypes bindings for libmcrypt
 │   ├── mcrypt_registry.py # Algorithm/mode registry (99 stages)
 │   ├── mcrypt_stage.py    # Unified mcrypt decrypt stage
+│   ├── affine.py          # Affine cipher (3 charset modes)
 │   ├── bifid.py           # Bifid cipher
-│   ├── caesar.py          # Caesar cipher
+│   ├── caesar.py          # Caesar cipher (3 charset modes)
 │   ├── columnar.py        # Columnar transposition
 │   ├── double_columnar.py # Double columnar transposition
+│   ├── myszkowski.py      # Myszkowski transposition
 │   ├── railfence.py       # Railfence cipher
+│   ├── redefense.py       # Redefense (keyed rail fence)
 │   ├── reverse.py         # Text reversal
 │   └── xor.py             # XOR cipher
 │
+├── tests/                  # Per-stage test files
+│   ├── test_affine_myszkowski_redefense.py
+│   ├── test_base64.py
+│   ├── test_bifid.py
+│   ├── test_caesar.py
+│   ├── test_columnar.py
+│   ├── test_key_derivation.py
+│   ├── test_mcrypt.py
+│   ├── test_railfence.py
+│   ├── test_reverse.py
+│   ├── test_scoring.py
+│   └── test_xor.py
+│
+├── scripts/                # Build scripts
+│   └── build_mcrypt.sh   # Build libmcrypt from source
+│
 └── docs/                   # Documentation
     ├── CONTEXT.md         # Project background and sources
-    ├── ADDING_A_STAGE.md  # Guide for adding new cipher stages
-    ├── DE.MD              # Der Eisendrache ciphers
-    ├── GK.md              # Gorod Krovi ciphers
-    ├── REVELATIONS.md     # Revelations ciphers
-    ├── SOE.MD             # Shadows of Evil ciphers
-    ├── THEGIANT.md        # The Giant ciphers
-    └── ZNS.md             # Zetsubou No Shima ciphers
+    ├── CIPHERS/           # Cipher solutions by map
+    │   ├── DE.MD          # Der Eisendrache
+    │   ├── GK.md          # Gorod Krovi
+    │   ├── REVELATIONS.md # Revelations
+    │   ├── SOE.MD         # Shadows of Evil
+    │   ├── THEGIANT.md    # The Giant
+    │   └── ZNS.md         # Zetsubou No Shima
+    └── CONTRIBUTING/
+        └── ADDING_A_STAGE.md
 ```
 
 ## Installation
@@ -92,18 +120,15 @@ This downloads libmcrypt 2.5.8, compiles it, and installs to `lib/mcrypt/`. Only
 ### Setup with uv (Recommended)
 
 ```bash
-# Install uv if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
-# Clone or download the repository
-cd ephemeral-enhancement
+cd bo3_ciphers
 uv run run_pipeline --pipeline "caesar" --ciphertext "KHOOR ZRUOG"
 ```
 
 ### Setup with pip
 
 ```bash
-# Clone or download the repository
-cd ephemeral-enhancement
+cd bo3_ciphers
 pip install -e .
 python3 run_pipeline.py --pipeline "caesar" --ciphertext "KHOOR ZRUOG"
 ```
@@ -112,39 +137,32 @@ python3 run_pipeline.py --pipeline "caesar" --ciphertext "KHOOR ZRUOG"
 
 ### Basic Usage
 
-**With uv (recommended):**
-```bash
-uv run run_pipeline \
-    --pipeline "caesar>bifid>b64>xor" \
-    --ciphertext "YOUR_CIPHERTEXT_HERE" \
-    --key_limit 100 \
-    --threshold 1.7
-```
-
-**With Python:**
 ```bash
 python run_pipeline.py \
-    --pipeline "caesar>bifid>b64>xor" \
+    --pipeline "caesar>b64>rijndael-128-cbc" \
     --ciphertext "YOUR_CIPHERTEXT_HERE" \
-    --key_limit 100 \
-    --threshold 1.7
+    --dictionary dictionary.txt \
+    --vary-case \
+    --threshold 1.7 \
+    --workers 4
 ```
 
 ### Command-Line Arguments
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
-| `--pipeline` | str | *required* | Cipher stages separated by `>` (e.g., `caesar>bifid>b64>xor`) |
-| `--ciphertext` | str | *(sample)* | The ciphertext to decrypt |
+| `--pipeline` | str | *required* | Cipher stages separated by `>` (e.g., `caesar>b64>rijndael-128-cbc`) |
+| `--ciphertext` | str | *(TG-1)* | The ciphertext to decrypt |
 | `--dictionary` | str | `dictionary.txt` | Path to dictionary file for keys |
-| `--key_limit` | int | `0` | Limit number of keys to try (0 = all, WARNING: can be huge) |
-| `--threshold` | float | `0.80` | Minimum printable ratio (0.0-1.0) to consider a hit |
-| `--max_hits` | int | `50` | Maximum number of results to return |
+| `--key_limit` | int | `0` | Limit dictionary to first N keys (0 = all, WARNING: huge search space) |
+| `--threshold` | float | `0.80` | Minimum score to report results (recommend 1.5-1.7 for English) |
+| `--max_hits` | int | `50` | Maximum number of results to display (0 = unlimited) |
 | `--workers` | int | `1` | Number of parallel worker processes |
-| `--chunk_size` | int | `10000` | Parameter tuples per worker task |
+| `--chunk_size` | int | `10000` | Parameter combinations per worker task |
 | `--progress_every` | int | `50` | Show progress every N completed tasks |
 | `--bifid_alphabet` | str | `standard` | Bifid alphabet: `standard` (5×5) or `base64` (8×8) |
-| `--dry_run` | flag | `false` | Show parameters without running |
+| `--vary-case` | flag | `false` | Try lowercase, uppercase, and title case per word (3× key space) |
+| `--dry-run` | flag | `false` | Show parameter space size without running |
 
 ### Examples
 
@@ -158,233 +176,95 @@ python run_pipeline.py \
     --threshold 0.9
 ```
 
-Output:
-```
-[pipeline] caesar
-[keys] 1
-[axes] caesar=26
-[estimate] param_tuples=26
-1.000 meta={'caesar_shift': 13}
-[done] attempts=26 hits=1 time=0.00s
-```
-
-#### Example 2: Multi-Stage Pipeline
+#### Example 2: mcrypt Pipeline
 
 ```bash
 python run_pipeline.py \
-    --pipeline "bifid>b64>xor" \
-    --ciphertext "YOUR_COMPLEX_CIPHERTEXT" \
-    --key_limit 100 \
-    --threshold 0.85 \
+    --pipeline "b64>rijndael-128-cbc" \
+    --dictionary dictionary.txt \
+    --vary-case \
+    --threshold 1.5 \
     --workers 4
 ```
 
-#### Example 3: Dry Run (Test Parameters)
+#### Example 3: Multi-Stage Pipeline
 
 ```bash
 python run_pipeline.py \
-    --pipeline "caesar>bifid>columnar>b64>xor" \
-    --key_limit 50 \
-    --dry_run
+    --pipeline "caesar>b64>des-ecb" \
+    --dictionary test_dict.txt \
+    --vary-case \
+    --threshold 1.5 \
+    --workers 8
 ```
 
-Output:
-```
-[pipeline] caesar>bifid>columnar>b64>xor
-[keys] 50
-[axes] caesar=26 bifid=50 columnar=50 xor=50
-[estimate] param_tuples=3,250,000
+#### Example 4: Dry Run (Estimate Search Space)
+
+```bash
+python run_pipeline.py \
+    --pipeline "affine>b64>rijndael-128-cbc" \
+    --dictionary test_dict.txt \
+    --vary-case \
+    --dry-run
 ```
 
 ### Understanding Output
 
-When a potential decryption is found, the output shows:
+When a potential decryption is found:
 
 ```
-0.950 meta={'caesar_shift': 7, 'bifid_key': 'ZOMBIE', 'xor_key': 'SECRET'}
+1.910 meta={'rijndael-128-cbc_key': 'THEGIANTTHEGIANT', 'rijndael-128-cbc_deriv': 0, 'rijndael-128-cbc_key_pad': 'as-is'}
 ```
 
-- `0.950`: Printable ratio (95% of output bytes are printable ASCII)
-- `meta`: Dictionary showing which keys/parameters were used at each stage
-
-Use these parameters to manually decrypt the ciphertext or verify the result.
+- **Score** (1.910): Combines printable ratio + English quality (max ~2.0)
+- **meta**: Shows which keys/parameters were used at each stage
 
 ## Development
 
 ### Running Tests
 
-**With uv:**
 ```bash
 # Run all tests
-uv run pytest test_stages.py -v
+python -m pytest tests/ -v
+
+# Run specific test file
+python -m pytest tests/test_mcrypt.py -v
 
 # Run specific test class
-uv run pytest test_stages.py::TestCaesarCipher -v
-
-# Run with verbose output
-uv run pytest test_stages.py -vv
+python -m pytest tests/test_caesar.py::TestCaesarCipher -v
 ```
 
-**With Python:**
-```bash
-# Install pytest first
-pip install pytest
+### Score Interpretation
 
-# Run tests
-pytest test_stages.py -v
-```
-
-### Project Structure
-
-The project uses a modular architecture:
-- **`core/`** - Pipeline execution logic (args, executor, worker, parallel, utils)
-- **`stages/`** - Cipher implementations (pure functions)
-- **`docs/`** - Documentation (architecture, contributing, cipher solutions)
-
-See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for detailed architecture documentation.
+| Score | Meaning |
+|-------|---------|
+| < 1.0 | Contains non-printable bytes |
+| = 1.0 | Fully printable but no English characteristics |
+| > 1.0 | Printable + English-like (frequency analysis + word matching) |
+| → 2.0 | Perfect English with common words |
 
 ### Contributing
 
-Want to add a new cipher stage? See **[docs/CONTRIBUTING/ADDING_A_STAGE.md](docs/CONTRIBUTING/ADDING_A_STAGE.md)** for a comprehensive guide.
+Want to add a new cipher stage? See **[docs/CONTRIBUTING/ADDING_A_STAGE.md](docs/CONTRIBUTING/ADDING_A_STAGE.md)**.
 
 ## Performance Tips
 
-### 1. Limit Your Dictionary
-
-The dictionary contains 9,000+ words. Start small:
-
-```bash
---key_limit 100  # Try only first 100 keys
-```
-
-### 2. Optimize Workers and Chunk Size
-
-#### Finding the Ideal Worker Count
-
-The optimal number of workers depends on your CPU:
-
-```bash
-# Check your CPU core count
-python -c "import multiprocessing; print(f'CPU cores: {multiprocessing.cpu_count()}')"
-```
-
-**Guidelines:**
-- **Start with:** `--workers <number_of_cores>`
-- **For CPU-bound tasks:** Use `cores - 1` (leave one for system)
-- **For small search spaces:** Use fewer workers (overhead isn't worth it)
-- **For large search spaces:** Use all cores
-
-**Examples:**
-```bash
-# 4-core system
---workers 4
-
-# 8-core system with hyperthreading (16 logical cores)
---workers 8  # Use physical cores, not logical
-
-# 16+ core system
---workers 12  # Diminishing returns after ~12 workers for most pipelines
-```
-
-#### Finding the Ideal Chunk Size
-
-Chunk size controls how many parameter combinations each worker processes before reporting back:
-
-**Trade-offs:**
-- **Small chunks** (1,000-5,000): More frequent progress updates, higher overhead
-- **Large chunks** (50,000-100,000): Less overhead, infrequent progress updates
-
-**Guidelines:**
-```bash
-# Small search space (< 100,000 combinations)
---chunk_size 1000
-
-# Medium search space (100,000 - 1,000,000)
---chunk_size 10000  # Default
-
-# Large search space (> 1,000,000)
---chunk_size 50000
-
-# Huge search space (> 10,000,000)
---chunk_size 100000
-```
-
-**Formula:** Aim for `total_combinations / (workers * 100)` chunks
-
-**Example optimization:**
-```bash
-# Check search space first
-python run_pipeline.py --pipeline "caesar>bifid>xor" --key_limit 100 --dry_run
-# Output: param_tuples=260,000
-
-# Optimize for 8-core system
-python run_pipeline.py \
-    --pipeline "caesar>bifid>xor" \
-    --key_limit 100 \
-    --workers 8 \
-    --chunk_size 5000 \
-    --progress_every 10
-# This creates 52 chunks (260,000 / 5,000)
-# Each worker gets ~6-7 chunks
-# Progress updates every 10 chunks
-```
-
-### 3. Adjust Threshold
-
-The threshold controls the minimum score required to report a result. With the new English scoring system:
-
-```bash
---threshold 1.0   # Accept any printable ASCII (may have many false positives)
---threshold 1.5   # Require some English characteristics
---threshold 1.7   # Require good English (recommended for most cases)
---threshold 1.85  # Require very good English (fewer false positives)
-```
-
-**Tip:** Start with `1.7` for XOR/Base64 pipelines to filter out gibberish.
-
-### 4. Estimate First
-
-Always do a dry run to see the search space size:
-
-```bash
---dry_run  # Shows parameter space without running
-```
-
-### 5. Monitor Performance
-
-Watch the rate metric to tune your settings:
-
-```
-[progress] tasks=50/520 attempts=500,000 hits=3 rate=125,000/s
-```
-
-- **Low rate** (< 50,000/s): Try larger chunk size or fewer workers
-- **High rate** (> 200,000/s): Well optimized!
-- **Inconsistent rate**: Adjust chunk size for more consistent performance
+1. **Estimate first**: `--dry-run` shows parameter space size
+2. **Limit dictionary**: `--key_limit 100` to start small
+3. **Use workers**: `--workers 4` (or your core count)
+4. **Adjust threshold**: `--threshold 1.7` for strong English filtering
+5. **Vary case**: `--vary-case` triples key space but catches case-sensitive keys
 
 ## Cipher Documentation
 
-Detailed documentation for solved ciphers from each BO3 Zombies map:
+Detailed solutions for each BO3 Zombies map:
 
-- **[docs/CIPHERS/DE.MD](docs/DE.MD)** - Der Eisendrache (12 ciphers)
-- **[docs/CIPHERS/GK.md](docs/CIPHERS/GK.md)** - Gorod Krovi
-- **[docs/CIPHERS/REVELATIONS.md](docs/CIPHERS/REVELATIONS.md)** - Revelations
-- **[docs/CIPHERS/SOE.MD](docs/CIPHERS/SOE.MD)** - Shadows of Evil
-- **[docs/CIPHERS/THEGIANT.md](docs/CIPHERS/THEGIANT.md)** - The Giant
-- **[docs/CIPHERS/ZNS.md](docs/CIPHERS/ZNS.md)** - Zetsubou No Shima
-
-Each document includes:
-- Cipher type
-- Keys used
-- Plaintext solutions
-- Solver credits
-
-## Limitations
-
-- **ASCII-focused**: Designed for English text
-- **Brute-force approach**: Not optimized for cryptanalysis
-- **Dictionary-dependent**: Key-based ciphers require good dictionary
-- **Native library required**: Symmetric ciphers require building libmcrypt from source (macOS/Linux)
+- **[Shadows of Evil](docs/CIPHERS/SOE.MD)** (5 ciphers — all solved)
+- **[The Giant](docs/CIPHERS/THEGIANT.md)** (5 ciphers — 1 unsolved)
+- **[Der Eisendrache](docs/CIPHERS/DE.MD)** (12 ciphers — all solved)
+- **[Zetsubou No Shima](docs/CIPHERS/ZNS.md)** (14 ciphers — all solved)
+- **[Gorod Krovi](docs/CIPHERS/GK.md)** (14 ciphers — all solved)
+- **[Revelations](docs/CIPHERS/REVELATIONS.md)** (14 ciphers — 10 unsolved)
 
 ## Credits
 
@@ -394,44 +274,6 @@ Each document includes:
 - [BlackOpsCiphers by waterkh](https://waterkh.github.io/BlackOpsCiphers/)
 - [Community Cipher Spreadsheet](https://docs.google.com/spreadsheets/u/1/d/e/2PACX-1vQvv8MxIGK-4KJb9e6QU3mWnI0knNsv8AMj75bdyCv3oMgtyXXZyY-3-6GBI1THZDQVIbllIKYGhJFV/pubhtml)
 
-### Tools Referenced
-
-- [PracticalCryptography](http://practicalcryptography.com/)
-- [Rumkin Cipher Tools](https://rumkin.com/)
-- [CrypTool Online](http://cryptool-online.org/)
-- [Cryptii V2](https://v2.cryptii.com/)
-
 ## License
 
 This project is provided as-is for educational and research purposes related to Call of Duty: Black Ops III Zombies easter eggs.
-
-## FAQ
-
-### Q: How do I know which pipeline to use?
-
-**A:** Start with single stages, then combine based on the cipher characteristics. Check the `docs/` folder for examples from solved BO3 ciphers.
-
-### Q: Why is my search taking forever?
-
-**A:** Use `--dry_run` to check the parameter space size. Use `--key_limit` to reduce it. Enable `--workers` for parallelization.
-
-### Q: What does the score mean?
-
-**A:** The score combines printable ratio and English text quality:
-- **< 1.0**: Contains non-printable bytes (shows ratio of printable characters)
-- **= 1.0**: Fully printable ASCII but no English characteristics
-- **> 1.0**: Fully printable + English-like (uses frequency analysis and word matching)
-- **→ 2.0**: Perfect English with common words
-
-Higher scores indicate better English text. Use `--threshold 1.7` or higher to filter out gibberish.
-
-### Q: Can I add my own dictionary?
-
-**A:** Yes! Use `--dictionary path/to/your/dict.txt`. One word per line.
-
-### Q: How do I decrypt with known parameters?
-
-**A:** The individual cipher functions are available in `stages/*.py`. Import and use them directly in Python.
-
----
-

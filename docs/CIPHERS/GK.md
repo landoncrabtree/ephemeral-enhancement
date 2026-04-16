@@ -125,7 +125,7 @@ PLAIN TEXT
 ## GK-11
 
     Cipher type: Double Columnar Transposition
-    Keys: 1 0 3 4 2 7 5 6 (654371979) & 4 3 2 1 5 0 7 6 8 (10271978)
+    Keys: 654371979 & 10271978
     Solved by: /u/finsternacht
 
 PLAIN TEXT
@@ -135,9 +135,9 @@ PLAIN TEXT
  
 ## GK-12
 
-    Cipher type: Autokey
-    Alphabet: ZOMBIESARVYWHCDFGJKLNPQTUX
+    Cipher type: Autokey Vigenère
     Key: TRYTHIS
+    Alphabet: ZOMBIESARVYWHCDFGJKLNPQTUX (keyword: ZOMBIESAREEVERYWHERE)
     Solved by: /u/jesseocean, /u/bluebo, codewarrior0
 
 PLAIN TEXT

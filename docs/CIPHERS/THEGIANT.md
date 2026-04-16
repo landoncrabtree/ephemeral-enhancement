@@ -33,7 +33,20 @@ PLAIN TEXT
  
 ## TG-4 (Unsolved)
 
-    UNSOLVED
+    Cipher type: Unknown (likely mcrypt-based symmetric cipher)
+    Key: TheGiant (per waterkh/BlackOpsCiphers)
+    Status: UNSOLVED — key is known but cipher type/algorithm is unknown
+
+CIPHER TEXT
+
+    kCmIgFi6GUJNgkNI1Q41fbfyLoCFTCvIqkZiI0KIAXAzP1U1uy1BE4U
+    fPBfpKmmL0bjYnQNRBaPtKiVWzc5A4v0w3xle8FOhAGJZ7g4in0wndJx
+    MOvO3dc1M82at2T6935roTqyWDgtGD/hwwRF3oHqFM5Vcw1JtINbsgWR
+    m4o4/quEDkZ7x1B275bX3/Fo1
+
+NOTE: The ciphertext above is from waterkh's BlackOpsCiphers database. There are minor
+discrepancies with some transcriptions (e.g., `I` vs `l`, `0` vs `O`). The original
+texture name is `i_mtl_p7_zm_the_giant_cipher_01_c`.
 
  
 ## TG-5
