@@ -54,12 +54,17 @@ def _nearest_valid_key_size(key_len: int, info: "McryptStageInfo") -> int:
     (any size up to max is valid). Never exceeds max_key_size.
     """
     if info.key_sizes is None:
-        # Variable-length: any size works, no padding needed
         return key_len
     for size in sorted(info.key_sizes):
         if size >= key_len:
             return size
     return info.max_key_size
+
+
+def _plaintext_preview(data: bytes, max_len: int = 40) -> str:
+    """Create a short printable preview of decrypted bytes."""
+    stripped = data.rstrip(b"\x00")[:max_len]
+    return stripped.decode("utf-8", errors="replace")
 
 
 class StageExecutor:
@@ -561,12 +566,14 @@ class StageExecutor:
         if kind == "bytes":
             score = combined_score(payload, self.common_words)  # type: ignore[arg-type]
             if score >= threshold:
+                meta["preview"] = _plaintext_preview(payload)  # type: ignore[arg-type]
                 return (score, meta)
         elif kind == "text":
             try:
                 payload_bytes = payload.encode("utf-8")  # type: ignore[union-attr]
                 score = combined_score(payload_bytes, self.common_words)
                 if score >= threshold:
+                    meta["preview"] = payload[:40]  # type: ignore[index]
                     return (score, meta)
             except Exception:
                 return (None, None)

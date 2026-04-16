@@ -219,7 +219,8 @@ def display_results(
 
     # Display results
     for score, meta in hits_to_show:
-        print(f"{score:.3f} meta={meta}")
+        preview = meta.pop("preview", "")
+        print(f"{score:.3f} [{preview}] meta={meta}")
 
     # Display summary
     print(
