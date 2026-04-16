@@ -105,12 +105,14 @@ After truncation, one of 2 padding strategies is applied:
 | 0 | `as-is` | Pass key directly to libmcrypt. libmcrypt internally zero-pads short keys with `\x00` to the nearest valid key size. |
 | 1 | `ascii-0-pad` | Pad key with ASCII `"0"` (0x30) to `max_key_size`. |
 
-**Example**: key `"Zombies"` (7 bytes) with `rijndael-128` (max key = 32 bytes):
+**Example**: key `"Zombies"` (7 bytes) with `rijndael-128` (valid key sizes: 16, 24, 32):
 
-| Strategy | Result (hex) |
-|---|---|
-| as-is | `5a6f6d62696573` → libmcrypt pads to `5a6f6d6269657300000000000000000` (16 bytes) |
-| ascii-0-pad | `5a6f6d62696573303030...30` (32 bytes) |
+| Strategy | Result | Effective Cipher |
+|---|---|---|
+| as-is | `5a6f6d62696573` (7 bytes) → libmcrypt pads with `\x00` to nearest valid size → 16 bytes | AES-128 |
+| ascii-0-pad | `5a6f6d62696573303030...30` padded with `"0"` to max_key_size → 32 bytes | AES-256 |
+
+**Important**: libmcrypt pads short keys to the **nearest valid key size**, not to `max_key_size`. For `rijndael-128`, a 7-byte key becomes 16 bytes (AES-128), while our ascii-0-pad strategy fills to 32 bytes (AES-256). These produce completely different ciphertext — both are worth trying.
 
 ### Total Key Variants per Dictionary Word
 
