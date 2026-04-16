@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .columnar import CHARSET_ALL, columnar_decrypt
+from .columnar import CHARSET_ALL, CHARSET_LETTERS_ONLY, columnar_decrypt
 
 
 def double_columnar_decrypt(

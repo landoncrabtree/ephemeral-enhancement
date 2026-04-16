@@ -2,26 +2,22 @@ from __future__ import annotations
 
 import math
 
-# Charset modes for transposition:
-# 0 = alpha: only transpose ASCII letters; digits/spaces/punct stay in place
-# 1 = alphanumeric: transpose ASCII letters + digits; spaces/punct stay in place
-# 2 = all: transpose every character (original behavior)
-N_COLUMNAR_CHARSET_MODES = 3
-CHARSET_ALPHA = 0
-CHARSET_ALPHANUMERIC = 1
-CHARSET_ALL = 2
+# Charset modes for transposition (Rumkin/CryptTool naming):
+# 0 = letters_only: only transpose ASCII letters; spaces, digits, punctuation
+#     stay at their original positions ("Move only letters")
+# 1 = all: transpose every character including spaces and punctuation
+#     ("Move spaces, punctuation, and capitalization")
+N_COLUMNAR_CHARSET_MODES = 2
+CHARSET_LETTERS_ONLY = 0
+CHARSET_ALL = 1
 
 _ASCII_ALPHA = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-_ASCII_DIGIT = set("0123456789")
-_ASCII_ALNUM = _ASCII_ALPHA | _ASCII_DIGIT
 
 
 def _is_transposable(ch: str, charset_mode: int) -> bool:
     """Return True if the character should be transposed in the given mode."""
     if charset_mode == CHARSET_ALL:
         return True
-    if charset_mode == CHARSET_ALPHANUMERIC:
-        return ch in _ASCII_ALNUM
     return ch in _ASCII_ALPHA
 
 

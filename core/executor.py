@@ -381,9 +381,8 @@ class StageExecutor:
         charset_mode = ki_combined // n_eff
         key_idx = ki_combined % n_eff
         key = self._get_effective_key(key_idx)
-        charset_labels = ["alpha", "alphanumeric", "all"]
         meta["columnar_key"] = key
-        meta["columnar_charset"] = charset_labels[charset_mode]
+        meta["columnar_charset"] = "letters_only" if charset_mode == 0 else "all"
         result = columnar_decrypt(payload, key, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
@@ -406,10 +405,9 @@ class StageExecutor:
         key_pair_idx = pi % n_key_pairs
         k1 = self._get_effective_key(key_pair_idx // n_eff)
         k2 = self._get_effective_key(key_pair_idx % n_eff)
-        charset_labels = ["alpha", "alphanumeric", "all"]
         meta["double_columnar_key1"] = k1
         meta["double_columnar_key2"] = k2
-        meta["double_columnar_charset"] = charset_labels[charset_mode]
+        meta["double_columnar_charset"] = "letters_only" if charset_mode == 0 else "all"
         result = double_columnar_decrypt(payload, k1, k2, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
