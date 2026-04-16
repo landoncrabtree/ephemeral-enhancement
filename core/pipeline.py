@@ -21,11 +21,14 @@ from .utils import N_CASE_VARIANTS
 
 # Classical cipher stages (non-mcrypt)
 _CLASSICAL_STAGES = {
+    "affine",
     "caesar",
     "bifid",
     "columnar",
     "double_columnar",
     "b64",
+    "myszkowski",
+    "redefense",
     "xor",
     "railfence",
     "reverse",
@@ -96,11 +99,15 @@ def axes_for_pipeline(
     k = n_keys * (N_CASE_VARIANTS if vary_case else 1)
     axes: list[StageAxis] = []
     for st in stages:
-        if st == "caesar":
+        if st == "affine":
+            # 12 valid 'a' values × 26 'b' values = 312
+            from stages.affine import VALID_A
+            axes.append(StageAxis("affine", len(VALID_A) * 26))
+        elif st == "caesar":
             axes.append(StageAxis("caesar", 26))
         elif st == "railfence":
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
-        elif st in ("bifid", "columnar", "xor"):
+        elif st in ("bifid", "columnar", "myszkowski", "redefense", "xor"):
             axes.append(StageAxis(st, k))
         elif st == "double_columnar":
             axes.append(StageAxis("double_columnar", k * k))

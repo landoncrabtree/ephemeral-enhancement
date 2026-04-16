@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 from typing import Any, Dict, Literal
 
+from stages.affine import VALID_A, affine_decrypt
 from stages.bifid import bifid_decrypt
 from stages.caesar import caesar_shift_text
 from stages.columnar import columnar_decrypt
@@ -23,7 +24,9 @@ from stages.mcrypt_registry import (
 )
 from stages.mcrypt_stage import mcrypt_decrypt_stage
 from stages.mcrypt_wrapper import McryptHandleCache
+from stages.myszkowski import myszkowski_decrypt
 from stages.railfence import railfence_decrypt
+from stages.redefense import redefense_decrypt
 from stages.reverse import reverse_text
 from stages.xor import repeating_xor
 
@@ -126,6 +129,9 @@ class StageExecutor:
         if stage == "b64":
             return self._execute_b64(payload, kind, axis_pos)
 
+        elif stage == "affine":
+            return self._execute_affine(payload, kind, param_idxs, axis_pos, meta)
+
         elif stage == "caesar":
             return self._execute_caesar(payload, kind, param_idxs, axis_pos, meta)
 
@@ -142,6 +148,12 @@ class StageExecutor:
             return self._execute_double_columnar(
                 payload, kind, param_idxs, axis_pos, meta
             )
+
+        elif stage == "myszkowski":
+            return self._execute_myszkowski(payload, kind, param_idxs, axis_pos, meta)
+
+        elif stage == "redefense":
+            return self._execute_redefense(payload, kind, param_idxs, axis_pos, meta)
 
         elif stage == "xor":
             return self._execute_xor(payload, kind, param_idxs, axis_pos, meta)
@@ -271,6 +283,62 @@ class StageExecutor:
         meta["double_columnar_key1"] = k1
         meta["double_columnar_key2"] = k2
         result = double_columnar_decrypt(payload, k1, k2)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + 1)
+
+    def _execute_affine(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Affine cipher stage (brute-force a,b)."""
+        if kind != "text":
+            return None
+
+        idx = param_idxs[axis_pos]
+        a = VALID_A[idx // 26]
+        b = idx % 26
+        meta["affine_a"] = a
+        meta["affine_b"] = b
+        result = affine_decrypt(payload, a, b)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + 1)
+
+    def _execute_myszkowski(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Myszkowski Transposition stage."""
+        if kind != "text":
+            return None
+
+        ki_combined = param_idxs[axis_pos]
+        key = self._get_effective_key(ki_combined)
+        meta["myszkowski_key"] = key
+        result = myszkowski_decrypt(payload, key)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + 1)
+
+    def _execute_redefense(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Redefense (keyed rail fence) stage."""
+        if kind != "text":
+            return None
+
+        ki_combined = param_idxs[axis_pos]
+        key = self._get_effective_key(ki_combined)
+        meta["redefense_key"] = key
+        result = redefense_decrypt(payload, key)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_xor(
