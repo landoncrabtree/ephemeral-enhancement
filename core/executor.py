@@ -477,7 +477,10 @@ class StageExecutor:
         iv_label = "none"
         if info.needs_iv:
             if iv_idx == IV_FROM_KEY:
+                # IV = key bytes, truncated/padded with \x00 to iv_size
                 iv = key[: info.iv_size]
+                if len(iv) < info.iv_size:
+                    iv = iv + b"\x00" * (info.iv_size - len(iv))
                 iv_label = "from-key"
             elif iv_idx == IV_ASCII_ZERO:
                 iv = b"0" * info.iv_size

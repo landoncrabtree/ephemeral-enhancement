@@ -206,15 +206,16 @@ class McryptHandle:
             if remainder != 0:
                 data = data + b"\x00" * (self.block_size - remainder)
 
-        # Handle IV
+        # Handle IV (executor provides correctly-sized IVs;
+        # this is a safety net for direct wrapper usage)
         iv_ptr = None
         if self.needs_iv:
             if iv is None:
-                iv = b"0" * self.iv_size
+                iv = b"\x00" * self.iv_size
             if len(iv) > self.iv_size:
                 iv = iv[: self.iv_size]
             elif len(iv) < self.iv_size:
-                iv = iv + b"0" * (self.iv_size - len(iv))
+                iv = iv + b"\x00" * (self.iv_size - len(iv))
             iv_buf = ctypes.create_string_buffer(iv)
             iv_ptr = ctypes.cast(iv_buf, ctypes.c_void_p)
 
