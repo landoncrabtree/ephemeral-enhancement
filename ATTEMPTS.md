@@ -28,11 +28,13 @@ Words: `Zombie`, `Zombies`, `TheGiant`, `TryThis` (with --vary-case: lowercase, 
 | 2 | `columnar>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 46s | v1 |
 | 3 | `double_columnar>b64>{mcrypt}` | All 99 | ~120,000 | 0 | 3.1min | v1 |
 | 4 | `affine>b64>{mcrypt}` | All | TODO | TODO | TODO | v1 |
-| 5 | `myszkowski>b64>{mcrypt}` | All | TODO | TODO | TODO | v1 |
-| 6 | `railfence>b64>{mcrypt}` | All | TODO | TODO | TODO | v1 |
-| 7 | `redefense>b64>{mcrypt}` | All | TODO | TODO | TODO | v1 |
-| 8 | `caesar>b64>{mcrypt}` (alpha only) | All | TODO | TODO | TODO | v1 |
-| 9 | `b64>xor>{mcrypt}` | All | TODO | TODO | TODO | v1 |
+| 5 | `myszkowski>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 52s | v1 |
+| 6 | `railfence>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 1.4min | v1 |
+| 7 | `redefense>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 50s | v1 |
+| 8 | `caesar>b64>{mcrypt}` (alpha only) | All 99 | ~2.5M | 991* | 1.6min | v1 |
+| 9 | `b64>xor>{mcrypt}` | All 99 | ~300,000 | 0 | 46s | v1 |
+
+\* Pipeline 8 hits are false positives: caesar with `all_printable` charset corrupts b64 characters, `b64decode(validate=False)` silently strips them, producing ~5-8 byte garbage that scores above 0.7 by random chance.
 
 
 ---
