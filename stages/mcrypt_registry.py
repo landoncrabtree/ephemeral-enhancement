@@ -50,6 +50,11 @@ IV_MODES = {"cbc", "cfb", "ofb", "nofb", "ctr"}
 # 0 = zero IV, 1 = IV derived from key (zero-padded/truncated to iv_size)
 N_IV_STRATEGIES = 2
 
+# Number of key padding strategies
+# 0 = as-is (PHP behavior: pass key directly, no padding)
+# 1 = zero-pad to max_key_size
+N_KEY_PAD_STRATEGIES = 2
+
 
 @dataclass(frozen=True)
 class McryptStageInfo:
@@ -65,18 +70,6 @@ class McryptStageInfo:
     is_block: bool
     # Fixed key sizes (e.g. [16,24,32]) or None for variable-length
     key_sizes: list[int] | None
-
-
-# Backward-compatible aliases: old stage name -> new stage name
-ALIASES: dict[str, str] = {
-    "aes_ecb": "rijndael-128-ecb",
-    "aes_cbc": "rijndael-128-cbc",
-    "des_ecb": "des-ecb",
-    "des_cbc": "des-cbc",
-    "des3": "tripledes-ecb",
-    "rc4": "arcfour",
-    "xtea": "xtea-ecb",
-}
 
 
 def _build_registry() -> dict[str, McryptStageInfo]:
@@ -142,21 +135,14 @@ def get_registry() -> dict[str, McryptStageInfo]:
     return _registry
 
 
-def resolve_stage_name(name: str) -> str:
-    """Resolve a stage name, following aliases."""
-    return ALIASES.get(name, name)
-
-
 def get_stage_info(name: str) -> McryptStageInfo | None:
-    """Look up stage info by name (follows aliases)."""
-    resolved = resolve_stage_name(name)
-    return get_registry().get(resolved)
+    """Look up stage info by name."""
+    return get_registry().get(name)
 
 
 def is_mcrypt_stage(name: str) -> bool:
-    """Check if a stage name (or alias) is a registered mcrypt stage."""
-    resolved = resolve_stage_name(name)
-    return resolved in get_registry()
+    """Check if a stage name is a registered mcrypt stage."""
+    return name in get_registry()
 
 
 def list_mcrypt_stages() -> list[str]:
@@ -165,8 +151,5 @@ def list_mcrypt_stages() -> list[str]:
 
 
 def get_all_valid_stage_names() -> set[str]:
-    """Return all valid mcrypt stage names including aliases."""
-    reg = get_registry()
-    names = set(reg.keys())
-    names.update(ALIASES.keys())
-    return names
+    """Return all valid mcrypt stage names."""
+    return set(get_registry().keys())

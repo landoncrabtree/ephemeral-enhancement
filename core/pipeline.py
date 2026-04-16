@@ -12,10 +12,10 @@ from dataclasses import dataclass
 from stages.key_derivation import N_KEY_DERIVATION_MODES
 from stages.mcrypt_registry import (
     N_IV_STRATEGIES,
+    N_KEY_PAD_STRATEGIES,
     get_all_valid_stage_names,
     get_stage_info,
     is_mcrypt_stage,
-    resolve_stage_name,
 )
 
 from .utils import N_CASE_VARIANTS
@@ -64,8 +64,6 @@ def parse_pipeline(pipeline: str) -> list[str]:
         SystemExit: If pipeline contains unknown stages
     """
     stages = [s.strip() for s in pipeline.split(">") if s.strip()]
-    # Resolve aliases to canonical names
-    stages = [resolve_stage_name(s) for s in stages]
     bad = [s for s in stages if s not in VALID_STAGES]
     if bad:
         raise SystemExit(
@@ -110,8 +108,8 @@ def axes_for_pipeline(
         elif is_mcrypt_stage(st):
             info = get_stage_info(st)
             assert info is not None
-            # key × derivation modes × (IV strategies if mode needs IV)
-            size = k * N_KEY_DERIVATION_MODES
+            # key × derivation modes × key_pad_strategies × (IV strategies if mode needs IV)
+            size = k * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES
             if info.needs_iv:
                 size *= N_IV_STRATEGIES
             axes.append(StageAxis(st, size))

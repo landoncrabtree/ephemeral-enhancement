@@ -18,6 +18,7 @@ from stages.double_columnar import double_columnar_decrypt
 from stages.key_derivation import N_KEY_DERIVATION_MODES, derive_key
 from stages.mcrypt_registry import (
     N_IV_STRATEGIES,
+    N_KEY_PAD_STRATEGIES,
     get_stage_info,
     is_mcrypt_stage,
 )
@@ -345,7 +346,7 @@ class StageExecutor:
         data = payload  # type: ignore[assignment]
         param_idx = param_idxs[axis_pos]
 
-        # Decompose param_idx: key_combined * N_KEY_DERIVATION_MODES [* N_IV_STRATEGIES]
+        # Decompose param_idx: ki_combined * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES [* N_IV_STRATEGIES]
         if info.needs_iv:
             iv_idx = param_idx % N_IV_STRATEGIES
             rest = param_idx // N_IV_STRATEGIES
@@ -353,11 +354,18 @@ class StageExecutor:
             iv_idx = -1
             rest = param_idx
 
+        key_pad_idx = rest % N_KEY_PAD_STRATEGIES
+        rest = rest // N_KEY_PAD_STRATEGIES
+
         deriv_idx = rest % N_KEY_DERIVATION_MODES
         ki_combined = rest // N_KEY_DERIVATION_MODES
 
         key_str = self._get_effective_key(ki_combined)
         key = derive_key(key_str, deriv_idx, size=info.max_key_size)
+
+        # Apply key padding strategy
+        if key_pad_idx == 1 and len(key) < info.max_key_size:
+            key = key + b"\x00" * (info.max_key_size - len(key))
 
         # Derive IV
         iv: bytes | None = None
@@ -373,6 +381,7 @@ class StageExecutor:
         # Record metadata
         meta[f"{stage}_key"] = key_str
         meta[f"{stage}_deriv"] = deriv_idx
+        meta[f"{stage}_key_pad"] = "zero-pad" if key_pad_idx == 1 else "as-is"
         if info.needs_iv:
             meta[f"{stage}_iv_mode"] = iv_idx
 
