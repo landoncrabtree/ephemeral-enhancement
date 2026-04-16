@@ -542,11 +542,17 @@ class StageExecutor:
         """
         Execute any mcrypt-based cipher stage.
 
-        Requires bytes input (e.g. from b64 stage).
+        Requires bytes input (e.g. from b64 stage), or text that will be
+        encoded to bytes.
         Decomposes param_idx into key index, derivation mode, and IV strategy
         based on the stage's registry info.
         """
-        if kind != "bytes":
+        if kind == "text":
+            try:
+                payload = payload.encode("utf-8")  # type: ignore[union-attr]
+            except (UnicodeEncodeError, AttributeError):
+                return None
+        elif kind != "bytes":
             return None
 
         info = get_stage_info(stage)
