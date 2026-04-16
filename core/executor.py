@@ -17,7 +17,6 @@ from stages.common import combined_score, printable_ratio
 from stages.double_columnar import double_columnar_decrypt
 from stages.key_derivation import N_KEY_DERIVATION_MODES, derive_key
 from stages.mcrypt_registry import (
-    N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
     get_stage_info,
     is_mcrypt_stage,
@@ -346,44 +345,36 @@ class StageExecutor:
         data = payload  # type: ignore[assignment]
         param_idx = param_idxs[axis_pos]
 
-        # Decompose param_idx: ki_combined * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES [* N_IV_STRATEGIES]
-        if info.needs_iv:
-            iv_idx = param_idx % N_IV_STRATEGIES
-            rest = param_idx // N_IV_STRATEGIES
-        else:
-            iv_idx = -1
-            rest = param_idx
-
-        key_pad_idx = rest % N_KEY_PAD_STRATEGIES
-        rest = rest // N_KEY_PAD_STRATEGIES
+        # Decompose param_idx: ki_combined * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES
+        key_pad_idx = param_idx % N_KEY_PAD_STRATEGIES
+        rest = param_idx // N_KEY_PAD_STRATEGIES
 
         deriv_idx = rest % N_KEY_DERIVATION_MODES
         ki_combined = rest // N_KEY_DERIVATION_MODES
 
         key_str = self._get_effective_key(ki_combined)
-        key = derive_key(key_str, deriv_idx, size=info.max_key_size)
 
-        # Apply key padding strategy
-        if key_pad_idx == 1 and len(key) < info.max_key_size:
-            key = key + b"\x00" * (info.max_key_size - len(key))
+        # Key padding strategy:
+        # 0 = as-is: derive key without forcing size, only truncate if > max
+        # 1 = zero-pad: derive and force to exactly max_key_size
+        if key_pad_idx == 1:
+            key = derive_key(key_str, deriv_idx, size=info.max_key_size)
+        else:
+            key = derive_key(key_str, deriv_idx)
+            if len(key) > info.max_key_size:
+                key = key[: info.max_key_size]
 
-        # Derive IV
+        # IV always derived from key (zero-padded/truncated to iv_size)
         iv: bytes | None = None
         if info.needs_iv:
-            if iv_idx == 0:
-                iv = b"\x00" * info.iv_size
-            elif iv_idx == 1:
-                # IV = key bytes, zero-padded/truncated to iv_size
-                iv = key[: info.iv_size]
-                if len(iv) < info.iv_size:
-                    iv = iv + b"\x00" * (info.iv_size - len(iv))
+            iv = key[: info.iv_size]
+            if len(iv) < info.iv_size:
+                iv = iv + b"\x00" * (info.iv_size - len(iv))
 
         # Record metadata
         meta[f"{stage}_key"] = key_str
         meta[f"{stage}_deriv"] = deriv_idx
         meta[f"{stage}_key_pad"] = "zero-pad" if key_pad_idx == 1 else "as-is"
-        if info.needs_iv:
-            meta[f"{stage}_iv_mode"] = iv_idx
 
         result = mcrypt_decrypt_stage(
             data, info.algo, info.mode, key, iv,

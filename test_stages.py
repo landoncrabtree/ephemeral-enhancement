@@ -626,8 +626,8 @@ class TestKeyDerivation:
         assert key == b"ab\x00\x00\x00\x00\x00\x00"
 
     def test_n_modes_constant(self):
-        """N_KEY_DERIVATION_MODES is 7."""
-        assert N_KEY_DERIVATION_MODES == 7
+        """N_KEY_DERIVATION_MODES is 8."""
+        assert N_KEY_DERIVATION_MODES == 8
 
 
 # ============================================================================

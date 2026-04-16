@@ -46,10 +46,6 @@ BLOCK_MODES = ["ecb", "cbc", "cfb", "ofb", "nofb", "ctr"]
 # Modes that require an IV
 IV_MODES = {"cbc", "cfb", "ofb", "nofb", "ctr"}
 
-# Number of IV derivation strategies for modes that need an IV
-# 0 = zero IV, 1 = IV derived from key (zero-padded/truncated to iv_size)
-N_IV_STRATEGIES = 2
-
 # Number of key padding strategies
 # 0 = as-is (PHP behavior: pass key directly, no padding)
 # 1 = zero-pad to max_key_size

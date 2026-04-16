@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import hashlib
 
-# Modes: raw, pad_zero_16, truncate_16, repeat_16, md5, sha1, sha256
-N_KEY_DERIVATION_MODES = 7
+# Modes: raw, pad_zero_16, truncate_16, repeat_16, md5, sha1, sha256, all_zeros
+N_KEY_DERIVATION_MODES = 8
 
 MODE_RAW = 0
 MODE_PAD_ZERO_16 = 1
@@ -19,6 +19,7 @@ MODE_REPEAT_16 = 3
 MODE_MD5 = 4
 MODE_SHA1 = 5
 MODE_SHA256 = 6
+MODE_ALL_ZEROS = 7
 
 
 def derive_key(word: str, mode: int, size: int | None = None) -> bytes:
@@ -55,6 +56,8 @@ def derive_key(word: str, mode: int, size: int | None = None) -> bytes:
         key = hashlib.sha1(raw).digest()[:16]
     elif mode == MODE_SHA256:
         key = hashlib.sha256(raw).digest()[:16]
+    elif mode == MODE_ALL_ZEROS:
+        key = b"\x00" * 16
     else:
         key = raw
 
