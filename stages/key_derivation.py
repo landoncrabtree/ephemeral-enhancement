@@ -1,8 +1,10 @@
 """
 Key derivation from wordlist candidates.
 
-Turns a string candidate into a byte key for symmetric ciphers.
-Used by binary stages that bruteforce keys from a dictionary.
+Transforms a dictionary word into key bytes for mcrypt decryption.
+Four derivation modes: raw (UTF-8 encode), md5, sha1, sha256.
+Key padding (null-padded vs zero-string-padded) is handled separately
+by the executor, not here.
 """
 
 from __future__ import annotations

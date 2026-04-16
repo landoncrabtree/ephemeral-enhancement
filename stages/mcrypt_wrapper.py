@@ -1,10 +1,18 @@
 """
 Python ctypes wrapper for libmcrypt.
 
-Provides a high-level decrypt function that matches PHP mcrypt_decrypt() semantics:
-- Zero-pads ciphertext to block size for block algorithms
-- Zero-pads key to algorithm's key size
-- Output contains null padding (no PKCS7)
+Thin wrapper around the libmcrypt C library. This module handles:
+- Loading the compiled libmcrypt shared library
+- Querying algorithm metadata (block size, key sizes, IV size)
+- Decrypting ciphertext via mcrypt_generic_init + mdecrypt_generic
+
+Key/IV derivation and padding strategies are NOT handled here — those live
+in the executor (core/executor.py). This wrapper only truncates overlong
+keys and provides a safety-net null-pad for short IVs when called directly.
+
+libmcrypt itself will null-pad (\x00) short keys to the nearest valid key
+size internally. Block cipher plaintext is zero-padded to block size (no
+PKCS7 — output may contain trailing null bytes).
 
 Also provides McryptHandleCache for efficient handle reuse in brute-force loops.
 """
@@ -186,28 +194,31 @@ class McryptHandle:
 
     def decrypt(self, key: bytes, iv: bytes | None, data: bytes) -> bytes | None:
         """
-        Decrypt data using PHP mcrypt_decrypt() semantics.
+        Decrypt data using libmcrypt.
 
-        - Key is zero-padded or truncated to max_key_size
-        - Data is zero-padded to block_size multiple (block ciphers only)
-        - IV is zero-padded or truncated to iv_size (if needed)
-        - Returns decrypted bytes (may contain null padding)
-        - Returns None on error
+        - Truncates key if longer than max_key_size; short keys are passed
+          directly to libmcrypt, which null-pads them to the nearest valid
+          key size internally.
+        - Zero-pads ciphertext to block_size multiple (block ciphers only).
+        - IV is truncated or null-padded to iv_size as a safety net; the
+          executor normally provides correctly-sized IVs.
+        - Returns decrypted bytes (may contain trailing null padding, no PKCS7).
+        - Returns None on error.
         """
-        # PHP mcrypt_decrypt key handling: use key as-is if it's an accepted
-        # length. Truncate if longer than max_key_size. PHP does NOT zero-pad
-        # short keys — it passes them directly to libmcrypt.
+        # Truncate overlong keys; short keys pass through to libmcrypt
+        # which null-pads them internally to the nearest valid key size.
         if len(key) > self.max_key_size:
             key = key[: self.max_key_size]
 
-        # PHP zero-pads data to block size for block algorithms
+        # Zero-pad ciphertext to block size for block algorithms
         if self.is_block and self.block_size > 0:
             remainder = len(data) % self.block_size
             if remainder != 0:
                 data = data + b"\x00" * (self.block_size - remainder)
 
-        # Handle IV (executor provides correctly-sized IVs;
-        # this is a safety net for direct wrapper usage)
+        # Safety-net IV handling for direct wrapper usage.
+        # The executor provides correctly-sized IVs; this just guards
+        # against misuse when calling the wrapper directly.
         iv_ptr = None
         if self.needs_iv:
             if iv is None:
@@ -298,18 +309,23 @@ def mcrypt_decrypt(
     handle_cache: McryptHandleCache | None = None,
 ) -> bytes | None:
     """
-    High-level decrypt matching PHP mcrypt_decrypt() behavior.
+    Decrypt ciphertext using libmcrypt.
+
+    This is the main entry point for decryption. Key/IV derivation and
+    padding strategies are handled by the caller (typically the executor).
+    libmcrypt will null-pad short keys internally to the nearest valid
+    key size; overlong keys are truncated to max_key_size.
 
     Args:
-        algo: Algorithm name (e.g. "rijndael-128", "des", "arcfour")
-        mode: Mode name (e.g. "ecb", "cbc", "stream")
-        key: Raw key bytes
-        iv: IV bytes (or None for ECB/stream)
+        algo: Algorithm name (e.g. "rijndael-128", "des", "loki97")
+        mode: Mode name (e.g. "ecb", "cbc", "cfb", "stream")
+        key: Key bytes (derivation/padding already applied by caller)
+        iv: IV bytes (or None for ECB/stream modes)
         data: Ciphertext bytes
         handle_cache: Optional cache for handle reuse in brute-force loops
 
     Returns:
-        Decrypted bytes or None on error
+        Decrypted bytes (may contain trailing null padding) or None on error.
     """
     if handle_cache is not None:
         handle = handle_cache.get(algo, mode)
