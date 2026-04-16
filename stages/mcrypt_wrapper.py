@@ -8,7 +8,9 @@ Thin wrapper around the libmcrypt C library. This module handles:
 
 Key/IV derivation and padding strategies are NOT handled here — those live
 in the executor (core/executor.py). This wrapper only truncates overlong
-keys and provides a safety-net null-pad for short IVs when called directly.
+keys and null-pads short IVs to prevent reading uninitialized memory
+(libmcrypt null-pads short keys internally, but does NOT pad short IVs —
+it reads exactly iv_size bytes from the pointer).
 
 libmcrypt itself will null-pad (\x00) short keys to the nearest valid key
 size internally. Block cipher plaintext is zero-padded to block size (no
@@ -217,8 +219,9 @@ class McryptHandle:
                 data = data + b"\x00" * (self.block_size - remainder)
 
         # Safety-net IV handling for direct wrapper usage.
-        # The executor provides correctly-sized IVs; this just guards
-        # against misuse when calling the wrapper directly.
+        # libmcrypt reads exactly iv_size bytes from the IV pointer — it does
+        # NOT check or pad short IVs. We null-pad here to avoid reading
+        # uninitialized memory. The executor provides correctly-sized IVs.
         iv_ptr = None
         if self.needs_iv:
             if iv is None:
