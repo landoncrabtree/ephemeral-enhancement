@@ -59,11 +59,13 @@ KEY_PAD_ZERO_STRING = 1
 # 1 = zero-string: IV is "0" (0x30) repeated to iv_size
 # 2 = key-null-padded: IV is key[:iv_size] padded with 0x00
 # 3 = key-zero-string-padded: IV is key[:iv_size] padded with "0" (0x30)
-N_IV_STRATEGIES = 4
+# 4 = prepended: first iv_size bytes of ciphertext ARE the IV
+N_IV_STRATEGIES = 5
 IV_NULL = 0
 IV_ZERO_STRING = 1
 IV_KEY_NULL_PAD = 2
 IV_KEY_ZERO_STRING_PAD = 3
+IV_PREPENDED = 4
 
 
 @dataclass(frozen=True)

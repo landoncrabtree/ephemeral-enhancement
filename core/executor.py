@@ -26,6 +26,7 @@ from stages.mcrypt_registry import (
     IV_KEY_NULL_PAD,
     IV_KEY_ZERO_STRING_PAD,
     IV_NULL,
+    IV_PREPENDED,
     IV_ZERO_STRING,
     KEY_PAD_ZERO_STRING,
     N_IV_STRATEGIES,
@@ -654,6 +655,12 @@ class StageExecutor:
                 if len(iv) < info.iv_size:
                     iv = iv + b"0" * (info.iv_size - len(iv))
                 iv_label = "key-zero-string-padded"
+            elif iv_idx == IV_PREPENDED:
+                if len(data) <= info.iv_size:
+                    return None  # not enough data for IV + ciphertext
+                iv = data[: info.iv_size]
+                data = data[info.iv_size :]
+                iv_label = "prepended"
 
         # Record metadata
         meta[f"{stage}_key"] = key_str
