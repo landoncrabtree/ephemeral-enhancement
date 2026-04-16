@@ -37,27 +37,7 @@ def _strip_mcrypt_output(data: bytes) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Test 1: Simple rijndael-256-ecb
-#   cwHATD2G... -> b64 -> rijndael-256-ecb(Zombies, raw, null-padded key)
-#   -> "The many worlds are now one."
-# ---------------------------------------------------------------------------
-
-SIMPLE_CT = "cwHATD2GLfnuOJDJeDqLpo+7tTRn8JJbOI6QEo4+rSc="
-SIMPLE_PLAINTEXT = "The many worlds are now one."
-
-
-def test_simple_rijndael_256_ecb(cache):
-    raw = base64.b64decode(SIMPLE_CT)
-    result = mcrypt_decrypt(
-        "rijndael-256", "ecb", b"Zombies", b"", raw, handle_cache=cache
-    )
-    assert result is not None
-    text = _strip_mcrypt_output(result).decode("utf-8")
-    assert text == SIMPLE_PLAINTEXT
-
-
-# ---------------------------------------------------------------------------
-# Test 2: beaufort52 > b64 > rc2-ecb > reverse > b64 > rijndael-256-ecb
+# Test 1: beaufort52 > b64 > rc2-ecb > reverse > b64 > rijndael-256-ecb
 #   OkEeZH... -> beaufort52(ZOMBIES) -> b64 -> rc2-ecb(Zombies) -> reverse
 #   -> b64 -> rijndael-256-ecb(Zombies) -> "The many worlds are now one."
 # ---------------------------------------------------------------------------
@@ -103,47 +83,7 @@ def test_beaufort52_rc2_rijndael(cache):
 #   Long b64 ciphertext -> b64 -> loki97-cfb(Zombies, IV="0"*16)
 #   -> "August, 1946. OSS report final T-7..."
 # ---------------------------------------------------------------------------
-
-LOKI97_B64_CT = (
-    "GBF+P0lzt9UN7sv1ymY/YQTNwCtemxAwR0qtJmbnzoHFRkUMFetsz3YpShewcUiR8g"
-    "DholRELIORbKl6XtU3TBx6EbmCh/YJ9BymD9bA2CDzKQPdqJLNzWRBpPsMqbT9tR4u"
-    "U9K+KSjRcLpjOJQ5GQIFQIM3dqYBBnf9wJHQIzC9H3RrSOCGH/WpQDALMMSsb6KAA"
-    "L6yzT8WHs8jsyjZnkbkrxA3xVokIjZv1fqCkqYsNZ2KIuF0UoOi6pULO6Zjε"
-)
-
-# Use the verified intermediate b64 that we know works
-LOKI97_PLAINTEXT_START = "August, 1946. OSS report final T-7."
-LOKI97_PLAINTEXT_END = "reach the anomaly before the Russians."
-
-
-def test_loki97_cfb_single(cache):
-    """Test the single-stage loki97-cfb decryption using verified intermediate."""
-    # Use the known good intermediate b64 from the 3-mcrypt chain verification
-    # instead of the raw ciphertext, since we confirmed this works.
-    # The standalone loki97-cfb test uses a shorter known ciphertext.
-
-    # We'll test the known short ciphertext that produces the OSS report:
-    # This is the b64-decoded intermediate from the 3-mcrypt chain.
-    # For a simpler self-contained test, encrypt the known plaintext and verify round-trip.
-    plaintext = (
-        "August, 1946. OSS report final T-7. All of the Group 935 and "
-        "Division 9 facilities we were able to procure have been dismantled "
-        "and crated. We have 215 scientists heading back to the United States "
-        "for orientation.\nJuly, 1947. OSS asset transfer request. We are "
-        "requesting that Dr. Shuster be transferred to Broomstick and the "
-        "Titan Project because of extensive intimacy with Group 935\u2019s long "
-        "range rockets. If approved, we will have him onsite at White Sands "
-        "for the first Titan Project test as an observer. As you know it is "
-        "imperative that we advance Titan quickly and reach the anomaly "
-        "before the Russians."
-    )
-    # Skipping this test in favor of the full 3-mcrypt chain below,
-    # which covers loki97-cfb as part of a confirmed pipeline.
-    pytest.skip("Covered by test_3mcrypt_chain")
-
-
-# ---------------------------------------------------------------------------
-# Test 4: b64 > rc2-cfb > reverse > hex > blowfish-cfb > b64 > loki97-cfb
+# Test 2: b64 > rc2-cfb > reverse > hex > blowfish-cfb > b64 > loki97-cfb
 #   Long b64 ciphertext -> b64 -> rc2-cfb(Zombies, IV="0"*8) -> reverse
 #   -> hex decode -> blowfish-cfb(Zombies, IV="0"*8)
 #   -> b64 -> loki97-cfb(Zombies, IV="0"*16)
@@ -241,7 +181,7 @@ def test_3mcrypt_chain(cache):
 
 
 # ---------------------------------------------------------------------------
-# Test 5: hex > xtea-cfb > reverse > caesar(shift=6)
+# Test 3: hex > xtea-cfb > reverse > caesar(shift=6)
 #   Hex ciphertext -> hex decode -> xtea-cfb(Zombies, IV=null)
 #   -> reverse -> caesar(shift=6)
 #   -> "Now that the many worlds are one..."
