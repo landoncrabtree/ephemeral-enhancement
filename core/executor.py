@@ -46,6 +46,7 @@ from stages.polyalpha import (
 from stages.railfence import railfence_decrypt
 from stages.redefense import redefense_decrypt
 from stages.reverse import reverse_text
+from stages.scytale import scytale_decrypt
 from stages.xor import repeating_xor
 
 from .utils import N_CASE_VARIANTS, apply_case_variant
@@ -214,6 +215,9 @@ class StageExecutor:
         elif stage == "reverse":
             return self._execute_reverse(payload, kind, meta, axis_pos)
 
+        elif stage == "scytale":
+            return self._execute_scytale(payload, kind, param_idxs, axis_pos, meta)
+
         elif is_mcrypt_stage(stage):
             return self._execute_mcrypt(stage, payload, kind, param_idxs, axis_pos, meta)
 
@@ -304,6 +308,24 @@ class StageExecutor:
         num_rails = rails_idx + 2  # 0-28 maps to 2-30 rails
         meta["railfence_rails"] = num_rails
         result = railfence_decrypt(payload, num_rails)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + 1)
+
+    def _execute_scytale(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Scytale transposition cipher stage."""
+        if kind != "text":
+            return None
+
+        cols_idx = param_idxs[axis_pos]
+        n_cols = cols_idx + 2  # 0-based index maps to 2..N columns
+        meta["scytale_cols"] = n_cols
+        result = scytale_decrypt(payload, n_cols)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_bifid(

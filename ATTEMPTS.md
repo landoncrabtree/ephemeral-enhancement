@@ -43,6 +43,7 @@ Words: `Zombie`, `Zombies`, `TheGiant`, `TryThis` (with --vary-case: lowercase, 
 | 17 | `trithemius52>b64>{mcrypt}` | All 99 | ~1,200 | 0 | 17s | v1 |
 | 18 | `vigenere>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 55s | v1 |
 | 19 | `vigenere52>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 48s | v1 |
+| 20 | `scytale>b64>{mcrypt}` | All 99 | ~120,000 | 0 | 1.7min | v1 |
 
 \* Pipeline 8 hits are false positives: caesar with `all_printable` charset corrupts b64 characters, `b64decode(validate=False)` silently strips them, producing ~5-8 byte garbage that scores above 0.7 by random chance.
 

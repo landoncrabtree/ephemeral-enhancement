@@ -44,6 +44,7 @@ _CLASSICAL_STAGES = {
     "xor",
     "railfence",
     "reverse",
+    "scytale",
 }
 
 # Valid stages = classical + all mcrypt stages (including aliases)
@@ -119,6 +120,8 @@ def axes_for_pipeline(
             axes.append(StageAxis("caesar", 26 * N_CAESAR_CHARSET_MODES))
         elif st == "railfence":
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
+        elif st == "scytale":
+            axes.append(StageAxis("scytale", 99))  # 2-100 columns
         elif st in ("bifid", "columnar", "myszkowski", "redefense", "xor",
                     "vigenere", "beaufort", "autokey", "porta",
                     "vigenere52", "beaufort52", "autokey52", "porta52"):
