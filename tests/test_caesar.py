@@ -47,3 +47,13 @@ class TestCaesarCipher:
         text = "ABC"
         result = caesar_shift_text(text, 26)
         assert result == "ABC"
+
+    def test_digit_shift(self):
+        """Digits shift within 0-9."""
+        assert caesar_shift_text("789", 3) == "012"
+        assert caesar_shift_text("012", -3) == "789"
+
+    def test_mixed_alphanumeric(self):
+        """Digits and letters shift independently, symbols preserved."""
+        result = caesar_shift_text("abc123/+=", 1)
+        assert result == "bcd234/+="
