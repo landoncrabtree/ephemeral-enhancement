@@ -29,6 +29,7 @@ class WorkerState:
         threshold: Minimum score to report
         bifid_alphabet: Alphabet for bifid cipher
         common_words: Common words for English scoring
+        vary_case: Try lower/upper/title case per word
     """
 
     ciphertext: str
@@ -39,6 +40,7 @@ class WorkerState:
     threshold: float
     bifid_alphabet: str
     common_words: set[str] | None
+    vary_case: bool
 
 
 # Global worker state (set by init_worker)
@@ -52,6 +54,7 @@ def init_worker(
     threshold: float,
     bifid_alphabet: str,
     common_words: set[str] | None = None,
+    vary_case: bool = False,
 ) -> None:
     """
     Initialize worker process state.
@@ -66,10 +69,11 @@ def init_worker(
         threshold: Minimum score to report
         bifid_alphabet: Alphabet for bifid cipher
         common_words: Common words for English scoring
+        vary_case: Try lower/upper/title case per word
     """
     global _WORKER_STATE
 
-    axes = axes_for_pipeline(stages, len(keys))
+    axes = axes_for_pipeline(stages, len(keys), vary_case=vary_case)
     bases = [a.size for a in axes]
 
     _WORKER_STATE = WorkerState(
@@ -81,6 +85,7 @@ def init_worker(
         threshold=threshold,
         bifid_alphabet=bifid_alphabet,
         common_words=common_words,
+        vary_case=vary_case,
     )
 
 
@@ -108,6 +113,7 @@ def process_chunk(
         stages=state.stages,
         bifid_alphabet=state.bifid_alphabet,
         common_words=state.common_words,
+        vary_case=state.vary_case,
     )
 
     attempts = 0

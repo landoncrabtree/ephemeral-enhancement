@@ -54,14 +54,14 @@ def main() -> None:
         ciphertext = config.ciphertext
 
     # Calculate parameter space
-    axes = axes_for_pipeline(stages, len(keys))
+    axes = axes_for_pipeline(stages, len(keys), vary_case=config.vary_case)
     total_combinations = 1
     for axis in axes:
         total_combinations *= axis.size
 
     # Display pipeline information
     print(f"[pipeline] {config.pipeline}")
-    print(f"[keys] {len(keys):,}")
+    print(f"[keys] {len(keys):,}" + (" (vary-case: 3 per word)" if config.vary_case else ""))
     if axes:
         print("[axes] " + " ".join(f"{a.name}={a.size:,}" for a in axes))
     print(f"[estimate] param_tuples={total_combinations:,}")
@@ -81,6 +81,7 @@ def main() -> None:
         workers=config.workers,
         chunk_size=config.chunk_size,
         progress_every=config.progress_every,
+        vary_case=config.vary_case,
     )
 
     # Execute pipeline

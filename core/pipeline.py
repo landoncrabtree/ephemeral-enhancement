@@ -9,6 +9,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from stages.aes_cbc import N_IV_MODES
+from stages.des_cbc import N_IV_MODES as DES_CBC_IV_MODES
+from stages.key_derivation import N_KEY_DERIVATION_MODES
+
+from .utils import N_CASE_VARIANTS
+
 # Valid cipher stages
 VALID_STAGES = {
     "caesar",
@@ -19,6 +25,13 @@ VALID_STAGES = {
     "xor",
     "railfence",
     "reverse",
+    "rc4",
+    "aes_ecb",
+    "aes_cbc",
+    "des_ecb",
+    "des_cbc",
+    "des3",
+    "xtea",
 }
 
 
@@ -58,7 +71,9 @@ def parse_pipeline(pipeline: str) -> list[str]:
     return stages
 
 
-def axes_for_pipeline(stages: list[str], n_keys: int) -> list[StageAxis]:
+def axes_for_pipeline(
+    stages: list[str], n_keys: int, vary_case: bool = False
+) -> list[StageAxis]:
     """
     Compute parameter axes for a pipeline.
 
@@ -66,13 +81,19 @@ def axes_for_pipeline(stages: list[str], n_keys: int) -> list[StageAxis]:
     one axis to the search space. Stages like b64 and reverse have no
     parameters and don't contribute axes.
 
+    When vary_case is True, each key dimension is multiplied by
+    N_CASE_VARIANTS (lower, upper, title) and the effective key is
+    computed at runtime.
+
     Args:
         stages: List of stage names
         n_keys: Number of keys in dictionary
+        vary_case: If True, try 3 case variants per word (lower/upper/title)
 
     Returns:
         List of StageAxis objects defining the parameter space
     """
+    k = n_keys * (N_CASE_VARIANTS if vary_case else 1)
     axes: list[StageAxis] = []
     for st in stages:
         if st == "caesar":
@@ -80,12 +101,38 @@ def axes_for_pipeline(stages: list[str], n_keys: int) -> list[StageAxis]:
         elif st == "railfence":
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
         elif st in ("bifid", "columnar", "xor"):
-            axes.append(StageAxis(st, n_keys))
+            axes.append(StageAxis(st, k))
         elif st == "double_columnar":
-            # Ordered pairs of keys: (key1, key2)
-            axes.append(StageAxis("double_columnar", n_keys * n_keys))
+            axes.append(StageAxis("double_columnar", k * k))
+        elif st == "rc4":
+            axes.append(StageAxis("rc4", k * N_KEY_DERIVATION_MODES))
+        elif st == "aes_ecb":
+            axes.append(
+                StageAxis("aes_ecb", k * N_KEY_DERIVATION_MODES * 2)
+            )
+        elif st == "aes_cbc":
+            axes.append(
+                StageAxis(
+                    "aes_cbc",
+                    k * N_KEY_DERIVATION_MODES * N_IV_MODES * 2,
+                )
+            )
+        elif st == "des_ecb":
+            axes.append(
+                StageAxis("des_ecb", k * N_KEY_DERIVATION_MODES * 2)
+            )
+        elif st == "des_cbc":
+            axes.append(
+                StageAxis(
+                    "des_cbc",
+                    k * N_KEY_DERIVATION_MODES * DES_CBC_IV_MODES * 2,
+                )
+            )
+        elif st == "des3":
+            axes.append(StageAxis("des3", k * N_KEY_DERIVATION_MODES))
+        elif st == "xtea":
+            axes.append(StageAxis("xtea", k * N_KEY_DERIVATION_MODES))
         elif st in ("b64", "reverse"):
-            # No parameters
             continue
     return axes
 

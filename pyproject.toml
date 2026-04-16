@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Multi-stage cipher brute-forcing pipeline for BO3 Zombies ciphers"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "pycryptodome>=3.19.0",
+    "xtea>=0.7.1",
+]
 
 [project.optional-dependencies]
 dev = [

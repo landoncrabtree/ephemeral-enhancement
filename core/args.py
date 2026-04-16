@@ -28,6 +28,7 @@ class PipelineConfig:
         key_limit: Limit dictionary to first N keys (0 = no limit)
         bifid_alphabet: Alphabet for bifid cipher ("standard" or "base64")
         dry_run: Only show parameter space size, don't run
+        vary_case: Try lowercase, uppercase, title case for each wordlist key
     """
 
     ciphertext: str
@@ -41,6 +42,7 @@ class PipelineConfig:
     key_limit: int
     bifid_alphabet: str
     dry_run: bool
+    vary_case: bool
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -141,9 +143,17 @@ Examples:
     )
 
     ap.add_argument(
-        "--dry_run",
+        "--dry-run",
+        dest="dry_run",
         action="store_true",
         help="Show parameter space size without running the pipeline",
+    )
+
+    ap.add_argument(
+        "--vary-case",
+        dest="vary_case",
+        action="store_true",
+        help="Try lowercase, uppercase, and title case for each dictionary word (3x key tries, computed at runtime)",
     )
 
     return ap
@@ -171,4 +181,5 @@ def parse_args() -> PipelineConfig:
         key_limit=args.key_limit,
         bifid_alphabet=args.bifid_alphabet,
         dry_run=args.dry_run,
+        vary_case=args.vary_case,
     )

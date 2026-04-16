@@ -10,14 +10,24 @@ from __future__ import annotations
 import base64
 from typing import Any, Dict, Literal
 
+from stages.aes_cbc import N_IV_MODES, aes_cbc_decrypt
+from stages.aes_ecb import aes_ecb_decrypt
 from stages.bifid import bifid_decrypt
 from stages.caesar import caesar_shift_text
 from stages.columnar import columnar_decrypt
 from stages.common import combined_score, printable_ratio
+from stages.des_cbc import N_IV_MODES as DES_CBC_IV_MODES, des_cbc_decrypt
+from stages.des_ecb import des_ecb_decrypt
+from stages.des3 import des3_decrypt
 from stages.double_columnar import double_columnar_decrypt
+from stages.key_derivation import N_KEY_DERIVATION_MODES, derive_key
 from stages.railfence import railfence_decrypt
+from stages.rc4 import rc4_decrypt
 from stages.reverse import reverse_text
 from stages.xor import repeating_xor
+from stages.xtea import xtea_decrypt
+
+from .utils import N_CASE_VARIANTS, apply_case_variant
 
 Kind = Literal["text", "bytes"]
 
@@ -37,6 +47,7 @@ class StageExecutor:
         stages: list[str],
         bifid_alphabet: str,
         common_words: set[str] | None = None,
+        vary_case: bool = False,
     ):
         """
         Initialize the stage executor.
@@ -47,12 +58,22 @@ class StageExecutor:
             stages: List of stage names
             bifid_alphabet: Alphabet for bifid cipher
             common_words: Common words for English scoring
+            vary_case: If True, try lower/upper/title case per word (key index is combined)
         """
         self.ciphertext = ciphertext
         self.keys = keys
         self.stages = stages
         self.bifid_alphabet = bifid_alphabet
         self.common_words = common_words
+        self.vary_case = vary_case
+
+    def _get_effective_key(self, ki_combined: int) -> str:
+        """Resolve key string from combined key index (word index + optional case variant)."""
+        if self.vary_case:
+            ki = ki_combined // N_CASE_VARIANTS
+            case_idx = ki_combined % N_CASE_VARIANTS
+            return apply_case_variant(self.keys[ki], case_idx)
+        return self.keys[ki_combined]
 
     def execute_pipeline(
         self, param_idxs: list[int], threshold: float
@@ -125,6 +146,33 @@ class StageExecutor:
         elif stage == "reverse":
             return self._execute_reverse(payload, kind, meta, axis_pos)
 
+        elif stage == "rc4":
+            return self._execute_rc4(payload, kind, param_idxs, axis_pos, meta)
+        elif stage == "aes_ecb":
+            return self._execute_aes_ecb(
+                payload, kind, param_idxs, axis_pos, meta
+            )
+        elif stage == "aes_cbc":
+            return self._execute_aes_cbc(
+                payload, kind, param_idxs, axis_pos, meta
+            )
+        elif stage == "des_ecb":
+            return self._execute_des_ecb(
+                payload, kind, param_idxs, axis_pos, meta
+            )
+        elif stage == "des_cbc":
+            return self._execute_des_cbc(
+                payload, kind, param_idxs, axis_pos, meta
+            )
+        elif stage == "des3":
+            return self._execute_des3(
+                payload, kind, param_idxs, axis_pos, meta
+            )
+        elif stage == "xtea":
+            return self._execute_xtea(
+                payload, kind, param_idxs, axis_pos, meta
+            )
+
         else:
             raise ValueError(f"Unhandled stage: {stage}")
 
@@ -196,8 +244,8 @@ class StageExecutor:
         if kind != "text":
             return None
 
-        ki = param_idxs[axis_pos]
-        key = self.keys[ki]
+        ki_combined = param_idxs[axis_pos]
+        key = self._get_effective_key(ki_combined)
         meta["bifid_key"] = key
         result = bifid_decrypt(
             payload,
@@ -219,8 +267,8 @@ class StageExecutor:
         if kind != "text":
             return None
 
-        ki = param_idxs[axis_pos]
-        key = self.keys[ki]
+        ki_combined = param_idxs[axis_pos]
+        key = self._get_effective_key(ki_combined)
         meta["columnar_key"] = key
         result = columnar_decrypt(payload, key)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
@@ -238,9 +286,9 @@ class StageExecutor:
             return None
 
         pi = param_idxs[axis_pos]
-        n = len(self.keys)
-        k1 = self.keys[pi // n]
-        k2 = self.keys[pi % n]
+        n = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        k1 = self._get_effective_key(pi // n)
+        k2 = self._get_effective_key(pi % n)
         meta["double_columnar_key1"] = k1
         meta["double_columnar_key2"] = k2
         result = double_columnar_decrypt(payload, k1, k2)  # type: ignore[arg-type]
@@ -255,8 +303,8 @@ class StageExecutor:
         meta: Dict[str, Any],
     ) -> tuple[str | bytes, Kind, int] | None:
         """Execute XOR cipher stage."""
-        ki = param_idxs[axis_pos]
-        key = self.keys[ki]
+        ki_combined = param_idxs[axis_pos]
+        key = self._get_effective_key(ki_combined)
         meta["xor_key"] = key
 
         # Convert to bytes if needed
@@ -291,6 +339,232 @@ class StageExecutor:
         meta["reverse_applied"] = True
         result = reverse_text(payload)  # type: ignore[arg-type]
         return (result, kind, axis_pos)
+
+    def _execute_rc4(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute RC4 stage. Requires bytes input (e.g. from b64)."""
+        if kind != "bytes":
+            return None
+        data = payload  # type: ignore[assignment]
+        param_idx = param_idxs[axis_pos]
+        ki_combined = param_idx // N_KEY_DERIVATION_MODES
+        deriv_idx = param_idx % N_KEY_DERIVATION_MODES
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx)
+        meta["rc4_key"] = key_str
+        meta["rc4_deriv"] = deriv_idx
+        try:
+            result = rc4_decrypt(data, key)
+        except Exception:
+            return None
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("ascii"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
+
+    def _execute_aes_ecb(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute AES-ECB stage. Requires bytes input (e.g. from b64)."""
+        if kind != "bytes":
+            return None
+        data = payload  # type: ignore[assignment]
+        param_idx = param_idxs[axis_pos]
+        padding_idx = param_idx % 2
+        rest = param_idx // 2
+        deriv_idx = rest % N_KEY_DERIVATION_MODES
+        ki_combined = rest // N_KEY_DERIVATION_MODES
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx, size=16)
+        padding: str = "pkcs7" if padding_idx == 0 else "nopadding"
+        meta["aes_ecb_key"] = key_str
+        meta["aes_ecb_deriv"] = deriv_idx
+        meta["aes_ecb_padding"] = padding
+        result = aes_ecb_decrypt(data, key, padding=padding)
+        if result is None:
+            return None
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("ascii"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
+
+    def _execute_aes_cbc(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute AES-CBC stage. Requires bytes input (e.g. from b64)."""
+        if kind != "bytes":
+            return None
+        data = payload  # type: ignore[assignment]
+        param_idx = param_idxs[axis_pos]
+        padding_idx = param_idx % 2
+        rest = param_idx // 2
+        iv_idx = rest % N_IV_MODES
+        rest = rest // N_IV_MODES
+        deriv_idx = rest % N_KEY_DERIVATION_MODES
+        ki_combined = rest // N_KEY_DERIVATION_MODES
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx, size=16)
+        padding = "pkcs7" if padding_idx == 0 else "nopadding"
+        meta["aes_cbc_key"] = key_str
+        meta["aes_cbc_deriv"] = deriv_idx
+        meta["aes_cbc_iv_mode"] = iv_idx
+        meta["aes_cbc_padding"] = padding
+        result = aes_cbc_decrypt(data, key, iv_idx, padding=padding)
+        if result is None:
+            return None
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("ascii"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
+
+    def _execute_des_ecb(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute DES-ECB stage. Requires bytes input (e.g. from b64)."""
+        if kind != "bytes":
+            return None
+        data = payload  # type: ignore[assignment]
+        param_idx = param_idxs[axis_pos]
+        padding_idx = param_idx % 2
+        rest = param_idx // 2
+        deriv_idx = rest % N_KEY_DERIVATION_MODES
+        ki_combined = rest // N_KEY_DERIVATION_MODES
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx, size=8)
+        padding = "pkcs7" if padding_idx == 0 else "nopadding"
+        meta["des_ecb_key"] = key_str
+        meta["des_ecb_deriv"] = deriv_idx
+        meta["des_ecb_padding"] = padding
+        result = des_ecb_decrypt(data, key, padding=padding)
+        if result is None:
+            return None
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("ascii"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
+
+    def _execute_des_cbc(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute DES-CBC stage. Requires bytes input (e.g. from b64)."""
+        if kind != "bytes":
+            return None
+        data = payload  # type: ignore[assignment]
+        param_idx = param_idxs[axis_pos]
+        padding_idx = param_idx % 2
+        rest = param_idx // 2
+        iv_idx = rest % DES_CBC_IV_MODES
+        rest = rest // DES_CBC_IV_MODES
+        deriv_idx = rest % N_KEY_DERIVATION_MODES
+        ki_combined = rest // N_KEY_DERIVATION_MODES
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx, size=8)
+        padding = "pkcs7" if padding_idx == 0 else "nopadding"
+        meta["des_cbc_key"] = key_str
+        meta["des_cbc_deriv"] = deriv_idx
+        meta["des_cbc_iv_mode"] = iv_idx
+        meta["des_cbc_padding"] = padding
+        result = des_cbc_decrypt(data, key, iv_idx, padding=padding)
+        if result is None:
+            return None
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("ascii"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
+
+    def _execute_des3(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute 3DES stage. Requires bytes input (e.g. from b64)."""
+        if kind != "bytes":
+            return None
+        data = payload  # type: ignore[assignment]
+        param_idx = param_idxs[axis_pos]
+        ki_combined = param_idx // N_KEY_DERIVATION_MODES
+        deriv_idx = param_idx % N_KEY_DERIVATION_MODES
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx, size=16)
+        meta["des3_key"] = key_str
+        meta["des3_deriv"] = deriv_idx
+        result = des3_decrypt(data, key)
+        if result is None:
+            return None
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("ascii"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
+
+    def _execute_xtea(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute XTEA stage. Requires bytes input (e.g. from b64)."""
+        if kind != "bytes":
+            return None
+        data = payload  # type: ignore[assignment]
+        param_idx = param_idxs[axis_pos]
+        ki_combined = param_idx // N_KEY_DERIVATION_MODES
+        deriv_idx = param_idx % N_KEY_DERIVATION_MODES
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx, size=16)
+        meta["xtea_key"] = key_str
+        meta["xtea_deriv"] = deriv_idx
+        result = xtea_decrypt(data, key)
+        if result is None:
+            return None
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("ascii"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
 
     def _evaluate_result(
         self,

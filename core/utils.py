@@ -8,6 +8,29 @@ enumeration for parameter space exploration.
 
 from __future__ import annotations
 
+# When --vary-case is used: try lowercase, uppercase, title case per word
+N_CASE_VARIANTS = 3  # 0=lower, 1=upper, 2=title
+
+
+def apply_case_variant(word: str, variant: int) -> str:
+    """
+    Return a case variant of the word (for --vary-case bruteforce).
+
+    Args:
+        word: Dictionary word
+        variant: 0=lowercase, 1=uppercase, 2=title case
+
+    Returns:
+        Word with the chosen casing
+    """
+    if variant == 0:
+        return word.lower()
+    if variant == 1:
+        return word.upper()
+    if variant == 2:
+        return word.title()
+    return word
+
 
 def load_dictionary(path: str) -> list[str]:
     """

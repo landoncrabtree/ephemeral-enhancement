@@ -51,6 +51,7 @@ class ParallelExecutor:
         workers: int,
         chunk_size: int,
         progress_every: int,
+        vary_case: bool = False,
     ):
         """
         Initialize the parallel executor.
@@ -65,6 +66,7 @@ class ParallelExecutor:
             workers: Number of worker processes
             chunk_size: Parameter combinations per chunk
             progress_every: Show progress every N chunks
+            vary_case: Try lower/upper/title case per word
         """
         self.ciphertext = ciphertext
         self.keys = keys
@@ -75,6 +77,7 @@ class ParallelExecutor:
         self.workers = workers
         self.chunk_size = chunk_size
         self.progress_every = progress_every
+        self.vary_case = vary_case
 
     def create_tasks(self, total_combinations: int) -> list[tuple[int, int]]:
         """
@@ -110,6 +113,7 @@ class ParallelExecutor:
             self.threshold,
             self.bifid_alphabet,
             self.common_words,
+            self.vary_case,
         )
 
         t0 = time.time()
@@ -156,6 +160,7 @@ class ParallelExecutor:
                 self.threshold,
                 self.bifid_alphabet,
                 self.common_words,
+                self.vary_case,
             ),
         ) as pool:
             for i, (a, hits) in enumerate(

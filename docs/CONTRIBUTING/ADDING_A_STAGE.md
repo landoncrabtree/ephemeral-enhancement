@@ -497,6 +497,27 @@ def _execute_double_xor(self, payload, kind, param_idxs, axis_pos, meta):
 
 ---
 
+## Binary and key-derived stages
+
+Stages like **rc4**, **aes_ecb**, **aes_cbc**, **des_ecb**, **des_cbc**, **des3**, and **xtea** operate on **bytes** and use **key derivation** from the wordlist. They are intended to be chained after a stage that already outputs bytes (e.g. **b64**), so the executor **requires `kind == "bytes"`** for these stages; if the payload is still text, the stage returns `None`.
+
+### Key derivation
+
+The module `stages/key_derivation.py` provides:
+
+- **`derive_key(word, mode, size=None)`** – turns a dictionary candidate string into a byte key. `mode` is 0..6: raw, pad_zero_16, truncate_16, repeat_16, md5, sha1, sha256. Optional `size` truncates or zero-pads the result (e.g. DES=8, AES=16).
+- **`N_KEY_DERIVATION_MODES`** – constant 7, used when defining the parameter axis.
+
+### Axis size for key-derived stages
+
+For a stage that uses key derivation, the axis size is typically **`n_keys * N_KEY_DERIVATION_MODES`**. If the stage has extra dimensions (e.g. padding or IV mode), multiply further (e.g. aes_ecb: `n_keys * N_KEY_DERIVATION_MODES * 2` for padding; aes_cbc: `n_keys * N_KEY_DERIVATION_MODES * N_IV_MODES * 2`).
+
+### Pipeline usage
+
+Binary stages expect bytes input. Use a pipeline like **`b64>aes_ecb`** or **`b64>rc4`** so that **b64** decodes the ciphertext to bytes before the symmetric cipher stage runs.
+
+---
+
 ## Testing
 
 ### Running Tests (with uv)

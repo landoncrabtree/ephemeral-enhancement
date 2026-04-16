@@ -13,7 +13,7 @@ This project provides a comprehensive framework for decrypting classical ciphers
 - 🎯 **Smart filtering**: English text scoring using frequency analysis and word matching
 - 📊 **Progress tracking**: Real-time progress updates and performance metrics
 - 🧩 **Modular design**: Easy to add new cipher stages
-- 🧪 **Well-tested**: Comprehensive test suite with 67+ tests
+- 🧪 **Well-tested**: Comprehensive test suite
 
 ### Supported Ciphers
 
@@ -25,6 +25,7 @@ This project provides a comprehensive framework for decrypting classical ciphers
 - **XOR**: Repeating-key XOR cipher
 - **Base64**: Standard base64 decoding
 - **Reverse**: Simple text reversal
+- **Symmetric (bytes input, use after b64)**: **RC4**, **AES-ECB**, **AES-CBC**, **DES-ECB**, **DES-CBC**, **3DES**, **XTEA** – key bruteforce with key derivation; CBC stages try all IV modes (iv=key, zero, key+0pad, md5/sha256/sha1 of key). Use pipelines like `b64>aes_ecb` or `b64>aes_cbc`.
 
 ## Project Structure
 
@@ -49,13 +50,21 @@ bo3_ciphers/
 ├── stages/                 # Cipher implementations (pure functions)
 │   ├── __init__.py
 │   ├── common.py          # Shared utilities (scoring, printable ratio)
+│   ├── key_derivation.py  # Key derivation from wordlist (raw, pad, md5, sha1, etc.)
 │   ├── bifid.py           # Bifid cipher
 │   ├── caesar.py          # Caesar cipher
 │   ├── columnar.py        # Columnar transposition
 │   ├── double_columnar.py # Double columnar transposition
 │   ├── railfence.py       # Railfence cipher
 │   ├── reverse.py         # Text reversal
-│   └── xor.py             # XOR cipher
+│   ├── xor.py             # XOR cipher
+│   ├── rc4.py             # RC4 stream cipher
+│   ├── aes_ecb.py         # AES-ECB (padding / no padding)
+│   ├── aes_cbc.py         # AES-CBC (IV modes, padding)
+│   ├── des_ecb.py         # DES-ECB (padding / no padding)
+│   ├── des_cbc.py         # DES-CBC (IV modes, padding)
+│   ├── des3.py            # 3DES
+│   └── xtea.py            # XTEA (via xtea package)
 │
 └── docs/                   # Documentation
     ├── CONTEXT.md         # Project background and sources

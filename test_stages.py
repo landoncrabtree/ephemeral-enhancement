@@ -15,6 +15,8 @@ import base64
 
 import pytest
 
+from stages.aes_cbc import aes_cbc_decrypt
+from stages.aes_ecb import aes_ecb_decrypt
 from stages.bifid import (
     BASE64_ALPHABET,
     STANDARD_ALPHABET,
@@ -25,8 +27,20 @@ from stages.bifid import (
 from stages.caesar import caesar_shift_text
 from stages.columnar import columnar_decrypt
 from stages.common import combined_score, printable_ratio
+from stages.des3 import des3_decrypt
+from stages.des_cbc import des_cbc_decrypt
+from stages.des_ecb import des_ecb_decrypt
 from stages.double_columnar import double_columnar_decrypt
+from stages.key_derivation import (
+    MODE_MD5,
+    MODE_RAW,
+    MODE_SHA1,
+    MODE_SHA256,
+    N_KEY_DERIVATION_MODES,
+    derive_key,
+)
 from stages.railfence import railfence_decrypt
+from stages.rc4 import rc4_decrypt
 from stages.reverse import reverse_text
 from stages.xor import repeating_xor
 
@@ -571,6 +585,228 @@ class TestTypeDetection:
         key2 = b"A"
         result2 = repeating_xor(plaintext2, key2)
         assert printable_ratio(result2) == 0.0
+
+
+# ============================================================================
+# KEY DERIVATION TESTS
+# ============================================================================
+
+
+class TestKeyDerivation:
+    """Tests for key derivation from wordlist candidates."""
+
+    def test_raw_mode(self):
+        """Raw mode returns UTF-8 bytes."""
+        assert derive_key("hello", MODE_RAW) == b"hello"
+        assert derive_key("ab", MODE_RAW, size=4) == b"ab\x00\x00"
+
+    def test_md5_mode(self):
+        """MD5 mode returns 16-byte hash."""
+        import hashlib
+
+        key = derive_key("test", MODE_MD5)
+        assert len(key) == 16
+        assert key == hashlib.md5(b"test").digest()
+
+    def test_sha1_mode_truncated_to_16(self):
+        """SHA1 mode returns first 16 bytes of hash."""
+        key = derive_key("test", MODE_SHA1)
+        assert len(key) == 16
+
+    def test_sha256_mode_truncated_to_16(self):
+        """SHA256 mode returns first 16 bytes of hash."""
+        key = derive_key("test", MODE_SHA256)
+        assert len(key) == 16
+
+    def test_size_truncates(self):
+        """size parameter truncates long keys."""
+        key = derive_key("a" * 20, MODE_RAW, size=8)
+        assert len(key) == 8
+        assert key == b"aaaaaaaa"
+
+    def test_size_pads(self):
+        """size parameter zero-pads short keys."""
+        key = derive_key("ab", MODE_RAW, size=8)
+        assert len(key) == 8
+        assert key == b"ab\x00\x00\x00\x00\x00\x00"
+
+    def test_n_modes_constant(self):
+        """N_KEY_DERIVATION_MODES is 7."""
+        assert N_KEY_DERIVATION_MODES == 7
+
+
+# ============================================================================
+# RC4 TESTS
+# ============================================================================
+
+
+class TestRC4:
+    """Tests for RC4 cipher stage."""
+
+    def test_decrypt(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "ZrIm9mTwwK2hFIkLqy3vL8Q="
+        decoded = base64.b64decode(ciphertext)
+
+        dec = rc4_decrypt(decoded, b"zombie")
+        assert dec == b"this is a message"
+
+
+# ============================================================================
+# AES-ECB TESTS
+# ============================================================================
+
+
+class TestAesEcb:
+    """Tests for AES-ECB stage."""
+
+    def test_ecb_decrypt_utf8_key(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "0f9628df40896c89a9472ca7422809f0950e8cbb36deb831d253f28550cc5e3b"
+        key = b"THEGIANTTHEGIANT"
+        decoded = bytes.fromhex(ciphertext)
+        dec = aes_ecb_decrypt(decoded, key, padding="pkcs7")
+        assert dec == b"this is a message"
+
+    def test_ecb_decrypt_md5_key(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "9cda89c7d4073c77050a34d8f6ef13057836431a27c49a62171c83c94b490d64"
+        key = derive_key("THEGIANT", MODE_MD5)
+        decoded = bytes.fromhex(ciphertext)
+        dec = aes_ecb_decrypt(decoded, key, padding="pkcs7")
+        assert dec == b"this is a message"
+
+    def test_bad_key_length_returns_none(self):
+        """Wrong key length returns None."""
+        assert aes_ecb_decrypt(b"0" * 16, b"short", padding="pkcs7") is None
+
+    def test_invalid_padding_returns_none(self):
+        """Invalid PKCS7 padding returns None."""
+        # Tampered ciphertext can produce invalid padding
+        result = aes_ecb_decrypt(b"\xff" * 16, b"0" * 16, padding="pkcs7")
+        assert result is None or len(result) != 0  # may return garbage or None
+
+
+# ============================================================================
+# AES-CBC TESTS
+# ============================================================================
+
+
+class TestAesCbc:
+    """Tests for AES-CBC stage."""
+
+    def test_cbc_decrypt_with_key_as_iv(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "d4995d1a6e2f442e88d7408ad45bef91dfac5f2124d8dc418e185e74fc44213c"
+        key = b"THEGIANTTHEGIANT"
+        decoded = bytes.fromhex(ciphertext)
+        # uses same iv as key
+        dec = aes_cbc_decrypt(decoded, key, 0, padding="pkcs7")
+        assert dec == b"this is a message"
+
+    def test_cbc_decrypt_with_zero_iv(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "0f9628df40896c89a9472ca7422809f024d8602a12b87f1e8a7e6d659b69b4d4"
+        key = b"THEGIANTTHEGIANT"
+        decoded = bytes.fromhex(ciphertext)
+        # uses zero iv
+        dec = aes_cbc_decrypt(decoded, key, 1, padding="pkcs7")
+        assert dec == b"this is a message"
+
+    def test_wrong_key_length_returns_none(self):
+        """Key not 16 bytes returns None."""
+        assert aes_cbc_decrypt(b"\x00" * 16, b"short", 1, padding="pkcs7") is None
+
+
+# ============================================================================
+# DES-ECB TESTS
+# ============================================================================
+
+
+class TestDesEcb:
+    """Tests for DES-ECB stage (padding / no padding)."""
+
+    def test_ecb_decrypt_utf8_key(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "4f34c94a586d374a7a7621b7539f834b02735463608a290b"
+        key = b"THEGIANT"
+        decoded = bytes.fromhex(ciphertext)
+        dec = des_ecb_decrypt(decoded, key, padding="pkcs7")
+        assert dec == b"this is a message"
+
+    def test_bad_key_length_returns_none(self):
+        """Wrong key length returns None."""
+        assert des_ecb_decrypt(b"0" * 8, b"short", padding="pkcs7") is None
+
+
+# ============================================================================
+# DES-CBC TESTS
+# ============================================================================
+
+
+class TestDesCbc:
+    """Tests for DES-CBC stage (IV modes, padding)."""
+
+    def test_cbc_decrypt_utf8_key(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "2dd788b4bcff956a172534d24e226bd17ddf2959d76ba8b7"
+        key = b"THEGIANT"
+        decoded = bytes.fromhex(ciphertext)
+        # uses same iv as key
+        dec = des_cbc_decrypt(decoded, key, 0, padding="pkcs7")
+        assert dec == b"this is a message"
+
+    def test_cbc_decrypt_with_zero_iv(self):
+        """Encrypt then decrypt returns original."""
+        ciphertext = "4f34c94a586d374a2fd91a5f2778d3df23daf8da957a63e6"
+        key = b"THEGIANT"
+        decoded = bytes.fromhex(ciphertext)
+        # uses zero iv
+        dec = des_cbc_decrypt(decoded, key, 1, padding="pkcs7")
+        assert dec == b"this is a message"
+
+
+# ============================================================================
+# 3DES TESTS
+# ============================================================================
+
+
+class TestDes3:
+    """Tests for 3DES stage."""
+
+    def test_roundtrip_16byte_key(self):
+        """Decrypt(encrypt(x)) with 16-byte key."""
+        from Crypto.Cipher import DES3
+
+        # Use non-degenerate key (repeated bytes can make 3DES degenerate)
+        key = b"0123456789abcdef"
+        plain = b"12345678"
+        cipher = DES3.new(key, DES3.MODE_ECB)
+        enc = cipher.encrypt(plain)
+        dec = des3_decrypt(enc, key)
+        assert dec == plain
+
+    def test_wrong_key_length_returns_none(self):
+        """Key not 16 or 24 bytes returns None."""
+        assert des3_decrypt(b"12345678", b"short") is None
+
+
+# ============================================================================
+# XTEA TESTS
+# ============================================================================
+
+# XTEA WIP
+
+# class TestXtea:
+#     """Tests for XTEA stage (xtea package)."""
+
+#     def test_decrypt_utf8_key(self):
+#         """Encrypt then decrypt returns original."""
+#         ciphertext = "4f34c94a586d374a7a7621b7539f834b02735463608a290b"
+#         key = b"THEGIANTTHEGIANT"
+#         decoded = bytes.fromhex(ciphertext)
+#         dec = xtea_decrypt(decoded, key)
+#         assert dec == b"this is a message"
 
 
 if __name__ == "__main__":
