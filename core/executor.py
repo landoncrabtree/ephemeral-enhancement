@@ -46,6 +46,22 @@ from .utils import N_CASE_VARIANTS, apply_case_variant
 Kind = Literal["text", "bytes"]
 
 
+def _nearest_valid_key_size(key_len: int, info: "McryptStageInfo") -> int:
+    """Find the nearest valid key size >= key_len for the algorithm.
+
+    For fixed-size algorithms (e.g. [16, 24, 32]), returns the smallest
+    valid size >= key_len. For variable-size algorithms, returns key_len
+    (any size up to max is valid). Never exceeds max_key_size.
+    """
+    if info.key_sizes is None:
+        # Variable-length: any size works, no padding needed
+        return key_len
+    for size in sorted(info.key_sizes):
+        if size >= key_len:
+            return size
+    return info.max_key_size
+
+
 class StageExecutor:
     """
     Executes cipher stages in a pipeline.
@@ -464,11 +480,13 @@ class StageExecutor:
             key = key[: info.max_key_size]
 
         # Key padding strategy:
-        # 0 = as-is: libmcrypt auto-pads short keys with \x00
-        # 1 = ascii-0-pad: pad with ASCII "0" (0x30) to max_key_size
+        # 0 = as-is: libmcrypt auto-pads short keys with \x00 to nearest valid size
+        # 1 = ascii-0-pad: pad with ASCII "0" (0x30) to nearest valid key size
+        #     (mirrors libmcrypt's rounding, but with "0" instead of \x00)
         if key_pad_idx == KEY_PAD_ASCII_ZERO:
-            if len(key) < info.max_key_size:
-                key = key + b"0" * (info.max_key_size - len(key))
+            target_size = _nearest_valid_key_size(len(key), info)
+            if len(key) < target_size:
+                key = key + b"0" * (target_size - len(key))
             meta[f"{stage}_key_pad"] = "ascii-0"
         else:
             meta[f"{stage}_key_pad"] = "as-is"
