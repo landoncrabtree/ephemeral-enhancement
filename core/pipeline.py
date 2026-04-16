@@ -23,6 +23,8 @@ from .utils import N_CASE_VARIANTS
 # Classical cipher stages (non-mcrypt)
 _CLASSICAL_STAGES = {
     "affine",
+    "autokey",
+    "beaufort",
     "caesar",
     "bifid",
     "columnar",
@@ -31,6 +33,7 @@ _CLASSICAL_STAGES = {
     "hex",
     "myszkowski",
     "redefense",
+    "vigenere",
     "xor",
     "railfence",
     "reverse",
@@ -109,7 +112,8 @@ def axes_for_pipeline(
             axes.append(StageAxis("caesar", 26 * N_CAESAR_CHARSET_MODES))
         elif st == "railfence":
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
-        elif st in ("bifid", "columnar", "myszkowski", "redefense", "xor"):
+        elif st in ("bifid", "columnar", "myszkowski", "redefense", "xor",
+                    "vigenere", "beaufort", "autokey"):
             axes.append(StageAxis(st, k))
         elif st == "double_columnar":
             axes.append(StageAxis("double_columnar", k * k))

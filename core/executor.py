@@ -36,6 +36,7 @@ from stages.mcrypt_registry import (
 from stages.mcrypt_stage import mcrypt_decrypt_stage
 from stages.mcrypt_wrapper import McryptHandleCache
 from stages.myszkowski import myszkowski_decrypt
+from stages.polyalpha import autokey_decrypt, beaufort_decrypt, vigenere_decrypt
 from stages.railfence import railfence_decrypt
 from stages.redefense import redefense_decrypt
 from stages.reverse import reverse_text
@@ -192,6 +193,11 @@ class StageExecutor:
 
         elif stage == "xor":
             return self._execute_xor(payload, kind, param_idxs, axis_pos, meta)
+
+        elif stage in ("vigenere", "beaufort", "autokey"):
+            return self._execute_polyalpha(
+                stage, payload, kind, param_idxs, axis_pos, meta
+            )
 
         elif stage == "reverse":
             return self._execute_reverse(payload, kind, meta, axis_pos)
@@ -444,6 +450,35 @@ class StageExecutor:
                 return (xor_result, "bytes", axis_pos + 1)
         else:
             return (xor_result, "bytes", axis_pos + 1)
+
+    _POLYALPHA_FNS = {
+        "vigenere": vigenere_decrypt,
+        "beaufort": beaufort_decrypt,
+        "autokey": autokey_decrypt,
+    }
+
+    def _execute_polyalpha(
+        self,
+        stage: str,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute a polyalphabetic cipher stage (vigenere/beaufort/autokey)."""
+        if kind != "text":
+            return None
+
+        ki_combined = param_idxs[axis_pos]
+        key = self._get_effective_key(ki_combined)
+        meta[f"{stage}_key"] = key
+
+        fn = self._POLYALPHA_FNS[stage]
+        result = fn(payload, key)  # type: ignore[arg-type]
+        if result is None:
+            return None
+        return (result, kind, axis_pos + 1)
 
     def _execute_reverse(
         self,
