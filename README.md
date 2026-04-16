@@ -25,7 +25,7 @@ This project provides a comprehensive framework for decrypting classical ciphers
 - **XOR**: Repeating-key XOR cipher
 - **Base64**: Standard base64 decoding
 - **Reverse**: Simple text reversal
-- **Symmetric (bytes input, use after b64)**: **RC4**, **AES-ECB**, **AES-CBC**, **DES-ECB**, **DES-CBC**, **3DES**, **XTEA** – key bruteforce with key derivation; CBC stages try all IV modes (iv=key, zero, key+0pad, md5/sha256/sha1 of key). Use pipelines like `b64>aes_ecb` or `b64>aes_cbc`.
+- **Symmetric (bytes input, use after b64)**: All **libmcrypt** algorithms via native C bindings — **Rijndael (AES-128/192/256)**, **DES**, **3DES**, **Blowfish**, **Twofish**, **Serpent**, **CAST-128/256**, **RC2**, **GOST**, **Loki97**, **Saferplus**, **XTEA**, **RC4 (Arcfour)**, **WAKE**, **Enigma**, and more. All block cipher modes supported: ECB, CBC, CFB, OFB, nOFB, CTR. Uses PHP `mcrypt_decrypt()` compatible semantics (zero-padding, key handling). Use pipelines like `b64>rijndael-128-ecb` or `b64>des-cbc`. Old aliases (`aes_ecb`, `rc4`, etc.) still work.
 
 ## Project Structure
 
@@ -47,24 +47,20 @@ bo3_ciphers/
 │   ├── parallel.py        # Multiprocessing orchestration
 │   └── utils.py           # Utility functions
 │
-├── stages/                 # Cipher implementations (pure functions)
+├── stages/                 # Cipher implementations
 │   ├── __init__.py
 │   ├── common.py          # Shared utilities (scoring, printable ratio)
 │   ├── key_derivation.py  # Key derivation from wordlist (raw, pad, md5, sha1, etc.)
+│   ├── mcrypt_wrapper.py  # Python ctypes bindings for libmcrypt
+│   ├── mcrypt_registry.py # Algorithm/mode registry (99 stages)
+│   ├── mcrypt_stage.py    # Unified mcrypt decrypt stage
 │   ├── bifid.py           # Bifid cipher
 │   ├── caesar.py          # Caesar cipher
 │   ├── columnar.py        # Columnar transposition
 │   ├── double_columnar.py # Double columnar transposition
 │   ├── railfence.py       # Railfence cipher
 │   ├── reverse.py         # Text reversal
-│   ├── xor.py             # XOR cipher
-│   ├── rc4.py             # RC4 stream cipher
-│   ├── aes_ecb.py         # AES-ECB (padding / no padding)
-│   ├── aes_cbc.py         # AES-CBC (IV modes, padding)
-│   ├── des_ecb.py         # DES-ECB (padding / no padding)
-│   ├── des_cbc.py         # DES-CBC (IV modes, padding)
-│   ├── des3.py            # 3DES
-│   └── xtea.py            # XTEA (via xtea package)
+│   └── xor.py             # XOR cipher
 │
 └── docs/                   # Documentation
     ├── CONTEXT.md         # Project background and sources
@@ -83,6 +79,15 @@ bo3_ciphers/
 
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- C compiler (gcc/clang) for building libmcrypt
+
+### Building libmcrypt (required for symmetric ciphers)
+
+```bash
+./scripts/build_mcrypt.sh
+```
+
+This downloads libmcrypt 2.5.8, compiles it, and installs to `lib/mcrypt/`. Only needs to be run once. Requires `curl`, `tar`, `make`, and a C compiler.
 
 ### Setup with uv (Recommended)
 
@@ -376,10 +381,10 @@ Each document includes:
 
 ## Limitations
 
-- **Classical cryptography only**: No modern encryption (AES, RSA, etc.)
 - **ASCII-focused**: Designed for English text
 - **Brute-force approach**: Not optimized for cryptanalysis
 - **Dictionary-dependent**: Key-based ciphers require good dictionary
+- **Native library required**: Symmetric ciphers require building libmcrypt from source (macOS/Linux)
 
 ## Credits
 

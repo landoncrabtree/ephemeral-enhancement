@@ -4,10 +4,7 @@ version = "0.1.0"
 description = "Multi-stage cipher brute-forcing pipeline for BO3 Zombies ciphers"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [
-    "pycryptodome>=3.19.0",
-    "xtea>=0.7.1",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
@@ -28,6 +25,7 @@ include = [
     "run_pipeline.py",
     "dictionary.txt",
     "common.txt",
+    "scripts/build_mcrypt.sh",
 ]
 
 [dependency-groups]

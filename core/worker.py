@@ -7,8 +7,10 @@ Workers process batches of parameter combinations in parallel.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict
+
+from stages.mcrypt_wrapper import McryptHandleCache
 
 from .executor import StageExecutor
 from .pipeline import StageAxis, axes_for_pipeline
@@ -30,6 +32,7 @@ class WorkerState:
         bifid_alphabet: Alphabet for bifid cipher
         common_words: Common words for English scoring
         vary_case: Try lower/upper/title case per word
+        handle_cache: Mcrypt handle cache for this worker
     """
 
     ciphertext: str
@@ -41,6 +44,7 @@ class WorkerState:
     bifid_alphabet: str
     common_words: set[str] | None
     vary_case: bool
+    handle_cache: McryptHandleCache = field(default_factory=McryptHandleCache)
 
 
 # Global worker state (set by init_worker)
@@ -60,7 +64,7 @@ def init_worker(
     Initialize worker process state.
 
     This is called once per worker process when the multiprocessing
-    pool is created.
+    pool is created. Each worker gets its own McryptHandleCache.
 
     Args:
         ciphertext: Input ciphertext
@@ -86,6 +90,7 @@ def init_worker(
         bifid_alphabet=bifid_alphabet,
         common_words=common_words,
         vary_case=vary_case,
+        handle_cache=McryptHandleCache(),
     )
 
 
@@ -114,6 +119,7 @@ def process_chunk(
         bifid_alphabet=state.bifid_alphabet,
         common_words=state.common_words,
         vary_case=state.vary_case,
+        handle_cache=state.handle_cache,
     )
 
     attempts = 0

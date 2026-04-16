@@ -1,0 +1,200 @@
+[
+    {
+        "label": "aes128-ecb-exact-block",
+        "algo": "rijndael-128",
+        "mode": "ecb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "82e8dac9947183413caf76d4345d6928"
+    },
+    {
+        "label": "aes128-cbc-zero-iv",
+        "algo": "rijndael-128",
+        "mode": "cbc",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "00000000000000000000000000000000",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "82e8dac9947183413caf76d4345d6928"
+    },
+    {
+        "label": "aes128-cbc-key-as-iv",
+        "algo": "rijndael-128",
+        "mode": "cbc",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "30313233343536373839616263646566",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "0984058b4a8e728c2d27230bc88d82dd"
+    },
+    {
+        "label": "aes128-ecb-short-pt",
+        "algo": "rijndael-128",
+        "mode": "ecb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "48656c6c6f",
+        "ciphertext_hex": "20cff95086c35d686e3f3d9914ac9271"
+    },
+    {
+        "label": "aes128-cfb-zero-iv",
+        "algo": "rijndael-128",
+        "mode": "cfb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "00000000000000000000000000000000",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "436e1bb4e75eb1fc6950d77f2c92fd42"
+    },
+    {
+        "label": "aes128-ofb-zero-iv",
+        "algo": "rijndael-128",
+        "mode": "ofb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "00000000000000000000000000000000",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "43f9fb4c4c73f061e6678efc7ae63599"
+    },
+    {
+        "label": "aes128-nofb-zero-iv",
+        "algo": "rijndael-128",
+        "mode": "nofb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "00000000000000000000000000000000",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "43fe79b62464f79a6771abe5e13e14f4"
+    },
+    {
+        "label": "des-ecb-exact-block",
+        "algo": "des",
+        "mode": "ecb",
+        "key_hex": "6162636465666768",
+        "iv_hex": "",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "19dedaddbb054294"
+    },
+    {
+        "label": "des-cbc-zero-iv",
+        "algo": "des",
+        "mode": "cbc",
+        "key_hex": "6162636465666768",
+        "iv_hex": "0000000000000000",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "19dedaddbb054294"
+    },
+    {
+        "label": "3des-ecb",
+        "algo": "tripledes",
+        "mode": "ecb",
+        "key_hex": "303132333435363738396162636465663031323334353637",
+        "iv_hex": "",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "7daf86ded555b747"
+    },
+    {
+        "label": "3des-cbc-zero-iv",
+        "algo": "tripledes",
+        "mode": "cbc",
+        "key_hex": "303132333435363738396162636465663031323334353637",
+        "iv_hex": "0000000000000000",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "7daf86ded555b747"
+    },
+    {
+        "label": "blowfish-ecb",
+        "algo": "blowfish",
+        "mode": "ecb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "2dd8badc6dbee4fa"
+    },
+    {
+        "label": "blowfish-cbc-zero-iv",
+        "algo": "blowfish",
+        "mode": "cbc",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "0000000000000000",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "2dd8badc6dbee4fa"
+    },
+    {
+        "label": "twofish-ecb",
+        "algo": "twofish",
+        "mode": "ecb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "a59038ee8472183a75424c000f169bce"
+    },
+    {
+        "label": "cast128-ecb",
+        "algo": "cast-128",
+        "mode": "ecb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "1eea59483c496729"
+    },
+    {
+        "label": "serpent-ecb",
+        "algo": "serpent",
+        "mode": "ecb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "e3d2a8ddc05548e88eac8c431c5be460"
+    },
+    {
+        "label": "xtea-ecb",
+        "algo": "xtea",
+        "mode": "ecb",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "6bb55fcfbc1f822f"
+    },
+    {
+        "label": "arcfour-stream",
+        "algo": "arcfour",
+        "mode": "stream",
+        "key_hex": "30313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "48656c6c6f20576f726c642121212121",
+        "ciphertext_hex": "cc0d2c35926ef7f77b9a3ebfe1b27264"
+    },
+    {
+        "label": "arcfour-stream-short-key",
+        "algo": "arcfour",
+        "mode": "stream",
+        "key_hex": "6b6579",
+        "iv_hex": "",
+        "plaintext_hex": "48656c6c6f20576f726c64",
+        "ciphertext_hex": "430958814baf2c253a276c"
+    },
+    {
+        "label": "rijndael256-ecb",
+        "algo": "rijndael-256",
+        "mode": "ecb",
+        "key_hex": "3031323334353637383961626364656630313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "48656c6c6f20576f726c64203132333448656c6c6f20576f726c642031323334",
+        "ciphertext_hex": "a658e31af88673d0bf01771d5b37afbc8070570819b09c5e6500decadef22d2c"
+    },
+    {
+        "label": "rijndael256-cbc-zero-iv",
+        "algo": "rijndael-256",
+        "mode": "cbc",
+        "key_hex": "3031323334353637383961626364656630313233343536373839616263646566",
+        "iv_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "plaintext_hex": "48656c6c6f20576f726c64203132333448656c6c6f20576f726c642031323334",
+        "ciphertext_hex": "a658e31af88673d0bf01771d5b37afbc8070570819b09c5e6500decadef22d2c"
+    },
+    {
+        "label": "gost-ecb",
+        "algo": "gost",
+        "mode": "ecb",
+        "key_hex": "3031323334353637383961626364656630313233343536373839616263646566",
+        "iv_hex": "",
+        "plaintext_hex": "5465737444617461",
+        "ciphertext_hex": "2904ef58aacf5186"
+    }
+]

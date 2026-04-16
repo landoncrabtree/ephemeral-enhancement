@@ -9,14 +9,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stages.aes_cbc import N_IV_MODES
-from stages.des_cbc import N_IV_MODES as DES_CBC_IV_MODES
 from stages.key_derivation import N_KEY_DERIVATION_MODES
+from stages.mcrypt_registry import (
+    N_IV_STRATEGIES,
+    get_all_valid_stage_names,
+    get_stage_info,
+    is_mcrypt_stage,
+    resolve_stage_name,
+)
 
 from .utils import N_CASE_VARIANTS
 
-# Valid cipher stages
-VALID_STAGES = {
+# Classical cipher stages (non-mcrypt)
+_CLASSICAL_STAGES = {
     "caesar",
     "bifid",
     "columnar",
@@ -25,14 +30,10 @@ VALID_STAGES = {
     "xor",
     "railfence",
     "reverse",
-    "rc4",
-    "aes_ecb",
-    "aes_cbc",
-    "des_ecb",
-    "des_cbc",
-    "des3",
-    "xtea",
 }
+
+# Valid stages = classical + all mcrypt stages (including aliases)
+VALID_STAGES = _CLASSICAL_STAGES | get_all_valid_stage_names()
 
 
 @dataclass(slots=True)
@@ -63,6 +64,8 @@ def parse_pipeline(pipeline: str) -> list[str]:
         SystemExit: If pipeline contains unknown stages
     """
     stages = [s.strip() for s in pipeline.split(">") if s.strip()]
+    # Resolve aliases to canonical names
+    stages = [resolve_stage_name(s) for s in stages]
     bad = [s for s in stages if s not in VALID_STAGES]
     if bad:
         raise SystemExit(
@@ -104,34 +107,14 @@ def axes_for_pipeline(
             axes.append(StageAxis(st, k))
         elif st == "double_columnar":
             axes.append(StageAxis("double_columnar", k * k))
-        elif st == "rc4":
-            axes.append(StageAxis("rc4", k * N_KEY_DERIVATION_MODES))
-        elif st == "aes_ecb":
-            axes.append(
-                StageAxis("aes_ecb", k * N_KEY_DERIVATION_MODES * 2)
-            )
-        elif st == "aes_cbc":
-            axes.append(
-                StageAxis(
-                    "aes_cbc",
-                    k * N_KEY_DERIVATION_MODES * N_IV_MODES * 2,
-                )
-            )
-        elif st == "des_ecb":
-            axes.append(
-                StageAxis("des_ecb", k * N_KEY_DERIVATION_MODES * 2)
-            )
-        elif st == "des_cbc":
-            axes.append(
-                StageAxis(
-                    "des_cbc",
-                    k * N_KEY_DERIVATION_MODES * DES_CBC_IV_MODES * 2,
-                )
-            )
-        elif st == "des3":
-            axes.append(StageAxis("des3", k * N_KEY_DERIVATION_MODES))
-        elif st == "xtea":
-            axes.append(StageAxis("xtea", k * N_KEY_DERIVATION_MODES))
+        elif is_mcrypt_stage(st):
+            info = get_stage_info(st)
+            assert info is not None
+            # key × derivation modes × (IV strategies if mode needs IV)
+            size = k * N_KEY_DERIVATION_MODES
+            if info.needs_iv:
+                size *= N_IV_STRATEGIES
+            axes.append(StageAxis(st, size))
         elif st in ("b64", "reverse"):
             continue
     return axes

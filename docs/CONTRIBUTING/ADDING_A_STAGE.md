@@ -499,7 +499,21 @@ def _execute_double_xor(self, payload, kind, param_idxs, axis_pos, meta):
 
 ## Binary and key-derived stages
 
-Stages like **rc4**, **aes_ecb**, **aes_cbc**, **des_ecb**, **des_cbc**, **des3**, and **xtea** operate on **bytes** and use **key derivation** from the wordlist. They are intended to be chained after a stage that already outputs bytes (e.g. **b64**), so the executor **requires `kind == "bytes"`** for these stages; if the payload is still text, the stage returns `None`.
+Stages like **rc4**, **aes_ecb**, **aes_cbc**, **des_ecb**, **des_cbc**, **des3**, and **xtea** (and all other symmetric ciphers) now use **libmcrypt** via native C bindings. They are backed by a unified mcrypt integration:
+
+- **`stages/mcrypt_wrapper.py`** — ctypes bindings for libmcrypt with PHP `mcrypt_decrypt()` compatible semantics
+- **`stages/mcrypt_registry.py`** — maps stage names (e.g. `rijndael-128-cbc`) to libmcrypt algo+mode combos
+- **`stages/mcrypt_stage.py`** — unified decrypt function used by the executor
+
+All mcrypt stages operate on **bytes** and must be chained after a stage that outputs bytes (e.g. `b64`).
+
+### Adding a new mcrypt algorithm
+
+If a new algorithm becomes available in libmcrypt, simply add it to `BLOCK_ALGORITHMS` or `STREAM_ALGORITHMS` in `stages/mcrypt_registry.py`. The registry will automatically generate stages for all valid mode combinations.
+
+### Backward compatibility aliases
+
+Old stage names like `aes_ecb`, `rc4`, `des_cbc` etc. still work via aliases defined in `stages/mcrypt_registry.py`.
 
 ### Key derivation
 

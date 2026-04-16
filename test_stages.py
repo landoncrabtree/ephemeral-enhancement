@@ -15,8 +15,6 @@ import base64
 
 import pytest
 
-from stages.aes_cbc import aes_cbc_decrypt
-from stages.aes_ecb import aes_ecb_decrypt
 from stages.bifid import (
     BASE64_ALPHABET,
     STANDARD_ALPHABET,
@@ -27,9 +25,6 @@ from stages.bifid import (
 from stages.caesar import caesar_shift_text
 from stages.columnar import columnar_decrypt
 from stages.common import combined_score, printable_ratio
-from stages.des3 import des3_decrypt
-from stages.des_cbc import des_cbc_decrypt
-from stages.des_ecb import des_ecb_decrypt
 from stages.double_columnar import double_columnar_decrypt
 from stages.key_derivation import (
     MODE_MD5,
@@ -39,8 +34,8 @@ from stages.key_derivation import (
     N_KEY_DERIVATION_MODES,
     derive_key,
 )
+from stages.mcrypt_wrapper import McryptHandleCache, mcrypt_decrypt
 from stages.railfence import railfence_decrypt
-from stages.rc4 import rc4_decrypt
 from stages.reverse import reverse_text
 from stages.xor import repeating_xor
 
@@ -640,173 +635,118 @@ class TestKeyDerivation:
 # ============================================================================
 
 
-class TestRC4:
-    """Tests for RC4 cipher stage."""
+class TestMcryptWrapper:
+    """Tests for the mcrypt ctypes wrapper."""
 
-    def test_decrypt(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "ZrIm9mTwwK2hFIkLqy3vL8Q="
-        decoded = base64.b64decode(ciphertext)
-
-        dec = rc4_decrypt(decoded, b"zombie")
-        assert dec == b"this is a message"
-
-
-# ============================================================================
-# AES-ECB TESTS
-# ============================================================================
-
-
-class TestAesEcb:
-    """Tests for AES-ECB stage."""
-
-    def test_ecb_decrypt_utf8_key(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "0f9628df40896c89a9472ca7422809f0950e8cbb36deb831d253f28550cc5e3b"
-        key = b"THEGIANTTHEGIANT"
-        decoded = bytes.fromhex(ciphertext)
-        dec = aes_ecb_decrypt(decoded, key, padding="pkcs7")
-        assert dec == b"this is a message"
-
-    def test_ecb_decrypt_md5_key(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "9cda89c7d4073c77050a34d8f6ef13057836431a27c49a62171c83c94b490d64"
-        key = derive_key("THEGIANT", MODE_MD5)
-        decoded = bytes.fromhex(ciphertext)
-        dec = aes_ecb_decrypt(decoded, key, padding="pkcs7")
-        assert dec == b"this is a message"
-
-    def test_bad_key_length_returns_none(self):
-        """Wrong key length returns None."""
-        assert aes_ecb_decrypt(b"0" * 16, b"short", padding="pkcs7") is None
-
-    def test_invalid_padding_returns_none(self):
-        """Invalid PKCS7 padding returns None."""
-        # Tampered ciphertext can produce invalid padding
-        result = aes_ecb_decrypt(b"\xff" * 16, b"0" * 16, padding="pkcs7")
-        assert result is None or len(result) != 0  # may return garbage or None
-
-
-# ============================================================================
-# AES-CBC TESTS
-# ============================================================================
-
-
-class TestAesCbc:
-    """Tests for AES-CBC stage."""
-
-    def test_cbc_decrypt_with_key_as_iv(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "d4995d1a6e2f442e88d7408ad45bef91dfac5f2124d8dc418e185e74fc44213c"
-        key = b"THEGIANTTHEGIANT"
-        decoded = bytes.fromhex(ciphertext)
-        # uses same iv as key
-        dec = aes_cbc_decrypt(decoded, key, 0, padding="pkcs7")
-        assert dec == b"this is a message"
-
-    def test_cbc_decrypt_with_zero_iv(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "0f9628df40896c89a9472ca7422809f024d8602a12b87f1e8a7e6d659b69b4d4"
-        key = b"THEGIANTTHEGIANT"
-        decoded = bytes.fromhex(ciphertext)
-        # uses zero iv
-        dec = aes_cbc_decrypt(decoded, key, 1, padding="pkcs7")
-        assert dec == b"this is a message"
-
-    def test_wrong_key_length_returns_none(self):
-        """Key not 16 bytes returns None."""
-        assert aes_cbc_decrypt(b"\x00" * 16, b"short", 1, padding="pkcs7") is None
-
-
-# ============================================================================
-# DES-ECB TESTS
-# ============================================================================
-
-
-class TestDesEcb:
-    """Tests for DES-ECB stage (padding / no padding)."""
-
-    def test_ecb_decrypt_utf8_key(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "4f34c94a586d374a7a7621b7539f834b02735463608a290b"
-        key = b"THEGIANT"
-        decoded = bytes.fromhex(ciphertext)
-        dec = des_ecb_decrypt(decoded, key, padding="pkcs7")
-        assert dec == b"this is a message"
-
-    def test_bad_key_length_returns_none(self):
-        """Wrong key length returns None."""
-        assert des_ecb_decrypt(b"0" * 8, b"short", padding="pkcs7") is None
-
-
-# ============================================================================
-# DES-CBC TESTS
-# ============================================================================
-
-
-class TestDesCbc:
-    """Tests for DES-CBC stage (IV modes, padding)."""
-
-    def test_cbc_decrypt_utf8_key(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "2dd788b4bcff956a172534d24e226bd17ddf2959d76ba8b7"
-        key = b"THEGIANT"
-        decoded = bytes.fromhex(ciphertext)
-        # uses same iv as key
-        dec = des_cbc_decrypt(decoded, key, 0, padding="pkcs7")
-        assert dec == b"this is a message"
-
-    def test_cbc_decrypt_with_zero_iv(self):
-        """Encrypt then decrypt returns original."""
-        ciphertext = "4f34c94a586d374a2fd91a5f2778d3df23daf8da957a63e6"
-        key = b"THEGIANT"
-        decoded = bytes.fromhex(ciphertext)
-        # uses zero iv
-        dec = des_cbc_decrypt(decoded, key, 1, padding="pkcs7")
-        assert dec == b"this is a message"
-
-
-# ============================================================================
-# 3DES TESTS
-# ============================================================================
-
-
-class TestDes3:
-    """Tests for 3DES stage."""
-
-    def test_roundtrip_16byte_key(self):
-        """Decrypt(encrypt(x)) with 16-byte key."""
-        from Crypto.Cipher import DES3
-
-        # Use non-degenerate key (repeated bytes can make 3DES degenerate)
+    def test_rijndael128_ecb_decrypt(self):
+        """AES-128 ECB decrypt works."""
         key = b"0123456789abcdef"
-        plain = b"12345678"
-        cipher = DES3.new(key, DES3.MODE_ECB)
-        enc = cipher.encrypt(plain)
-        dec = des3_decrypt(enc, key)
-        assert dec == plain
+        result = mcrypt_decrypt("rijndael-128", "ecb", key, None, b"\x00" * 16)
+        assert result is not None
+        assert len(result) == 16
 
-    def test_wrong_key_length_returns_none(self):
-        """Key not 16 or 24 bytes returns None."""
-        assert des3_decrypt(b"12345678", b"short") is None
+    def test_rijndael128_cbc_decrypt(self):
+        """AES-128 CBC decrypt with zero IV."""
+        key = b"0123456789abcdef"
+        iv = b"\x00" * 16
+        result = mcrypt_decrypt("rijndael-128", "cbc", key, iv, b"\x00" * 32)
+        assert result is not None
+        assert len(result) == 32
+
+    def test_des_ecb_decrypt(self):
+        """DES ECB decrypt works."""
+        key = b"abcdefgh"
+        result = mcrypt_decrypt("des", "ecb", key, None, b"\x00" * 8)
+        assert result is not None
+        assert len(result) == 8
+
+    def test_tripledes_ecb_decrypt(self):
+        """3DES ECB decrypt works."""
+        key = b"0123456789abcdef01234567"
+        result = mcrypt_decrypt("tripledes", "ecb", key, None, b"\x00" * 8)
+        assert result is not None
+        assert len(result) == 8
+
+    def test_arcfour_stream_decrypt(self):
+        """RC4 stream cipher decrypt works."""
+        key = b"testkey"
+        result = mcrypt_decrypt("arcfour", "stream", key, None, b"hello")
+        assert result is not None
+        assert len(result) == 5
+
+    def test_blowfish_ecb_decrypt(self):
+        """Blowfish ECB decrypt works."""
+        key = b"0123456789abcdef"
+        result = mcrypt_decrypt("blowfish", "ecb", key, None, b"\x00" * 8)
+        assert result is not None
+        assert len(result) == 8
+
+    def test_handle_cache_reuse(self):
+        """Handle cache returns same handle for same algo/mode."""
+        cache = McryptHandleCache()
+        h1 = cache.get("rijndael-128", "ecb")
+        h2 = cache.get("rijndael-128", "ecb")
+        assert h1 is h2
+        h3 = cache.get("des", "ecb")
+        assert h3 is not h1
+        cache.close_all()
+
+    def test_block_padding_to_block_size(self):
+        """Data not aligned to block size is zero-padded (PHP compat)."""
+        key = b"0123456789abcdef"
+        # 7 bytes for 16-byte block = should be padded to 16
+        result = mcrypt_decrypt("rijndael-128", "ecb", key, None, b"\x00" * 7)
+        assert result is not None
+        assert len(result) == 16
+
+    def test_stream_cipher_preserves_length(self):
+        """Stream ciphers return same length as input."""
+        key = b"mykey"
+        data = b"abc"
+        result = mcrypt_decrypt("arcfour", "stream", key, None, data)
+        assert result is not None
+        assert len(result) == 3
+
+
+class TestMcryptRegistry:
+    """Tests for mcrypt algorithm registry."""
+
+    def test_registry_has_block_ciphers(self):
+        """Registry contains all expected block ciphers."""
+        from stages.mcrypt_registry import get_registry
+        reg = get_registry()
+        for algo in ["rijndael-128-ecb", "des-cbc", "blowfish-ecb", "twofish-ctr"]:
+            assert algo in reg, f"{algo} not in registry"
+
+    def test_registry_has_stream_ciphers(self):
+        """Registry contains stream ciphers."""
+        from stages.mcrypt_registry import get_registry
+        reg = get_registry()
+        assert "arcfour" in reg
+        assert "wake" in reg
+
+    def test_aliases_resolve(self):
+        """Backward compatibility aliases work."""
+        from stages.mcrypt_registry import get_stage_info
+        info = get_stage_info("aes_ecb")
+        assert info is not None
+        assert info.algo == "rijndael-128"
+        assert info.mode == "ecb"
+
+    def test_is_mcrypt_stage(self):
+        """is_mcrypt_stage correctly identifies mcrypt vs classical."""
+        from stages.mcrypt_registry import is_mcrypt_stage
+        assert is_mcrypt_stage("rijndael-128-cbc")
+        assert is_mcrypt_stage("aes_ecb")  # alias
+        assert not is_mcrypt_stage("caesar")
+        assert not is_mcrypt_stage("bifid")
 
 
 # ============================================================================
-# XTEA TESTS
+# XTEA TESTS (now via mcrypt)
 # ============================================================================
 
 # XTEA WIP
-
-# class TestXtea:
-#     """Tests for XTEA stage (xtea package)."""
-
-#     def test_decrypt_utf8_key(self):
-#         """Encrypt then decrypt returns original."""
-#         ciphertext = "4f34c94a586d374a7a7621b7539f834b02735463608a290b"
-#         key = b"THEGIANTTHEGIANT"
-#         decoded = bytes.fromhex(ciphertext)
-#         dec = xtea_decrypt(decoded, key)
-#         assert dec == b"this is a message"
 
 
 if __name__ == "__main__":

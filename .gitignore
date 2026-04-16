@@ -36,3 +36,5 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+.build/
+lib/mcrypt/
