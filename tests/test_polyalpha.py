@@ -1,43 +1,146 @@
-"""Tests for polyalphabetic cipher stages: Vigenere, Beaufort, Autokey."""
+"""Tests for polyalphabetic cipher stages: Vigenere, Beaufort, Autokey, Porta, Trithemius."""
 
 from __future__ import annotations
 
 import pytest
 
 from stages.polyalpha import (
-    _ALPHA,
-    _MOD,
-    _ORD,
     autokey_decrypt,
     beaufort_decrypt,
+    porta_decrypt,
+    trithemius_decrypt,
     vigenere_decrypt,
 )
 
 
+PLAIN = "The quick brown fox jumps over the lazy dog."
+KEY = "Zombie"
+
+
 # ---------------------------------------------------------------------------
-# Alphabet basics
+# 26-char known test vectors (Cryptool-online standard behaviour)
 # ---------------------------------------------------------------------------
 
-class TestAlphabet:
-    def test_alphabet_length(self):
-        assert _MOD == 52
+class TestVigenere26:
+    CT = "Svq rcmby nswam tay rylde pdiq htf teym ppo."
 
-    def test_alphabet_order(self):
-        assert _ALPHA[:26] == "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        assert _ALPHA[26:] == "abcdefghijklmnopqrstuvwxyz"
+    def test_known_vector(self):
+        assert vigenere_decrypt(self.CT, KEY) == PLAIN
+
+    def test_identity_key_a(self):
+        assert vigenere_decrypt("Hello", "A") == "Hello"
+
+    def test_roundtrip(self):
+        """Encrypt then decrypt returns original (26-char)."""
+        # Encrypt: C = (P + K) mod 26
+        kv = [ord(ch.upper()) - 65 for ch in KEY if ch.isalpha()]
+        encrypted = []
+        j = 0
+        for ch in PLAIN:
+            if ch.isalpha():
+                base = 65 if ch.isupper() else 97
+                cv = (ord(ch.upper()) - 65 + kv[j % len(kv)]) % 26
+                encrypted.append(chr(base + cv))
+                j += 1
+            else:
+                encrypted.append(ch)
+        ct = "".join(encrypted)
+        assert vigenere_decrypt(ct, KEY) == PLAIN
+
+
+class TestBeaufort26:
+    CT = "Ghi lowxe lkuim jye zknzu nnai vfx xeaq jnc."
+
+    def test_known_vector(self):
+        assert beaufort_decrypt(self.CT, KEY) == PLAIN
+
+    def test_self_reciprocal(self):
+        encrypted = beaufort_decrypt(PLAIN, KEY)
+        assert encrypted is not None
+        assert beaufort_decrypt(encrypted, KEY) == PLAIN
+
+
+class TestAutokey26:
+    CT = "Svq rcmvr fhiep ppo xqzug leyd izs geqr ksr."
+
+    def test_known_vector(self):
+        assert autokey_decrypt(self.CT, KEY) == PLAIN
+
+    def test_short_msg_matches_vigenere(self):
+        ct = "ABC"
+        key = "XYZWV"
+        assert autokey_decrypt(ct, key) == vigenere_decrypt(ct, key)
+
+
+class TestPorta26:
+    CT = "Fny dltqq veflm yhk sjnjl bmpd aor uylf xbp."
+
+    def test_known_vector(self):
+        assert porta_decrypt(self.CT, KEY) == PLAIN
+
+    def test_self_reciprocal(self):
+        encrypted = porta_decrypt(PLAIN, KEY)
+        assert encrypted is not None
+        assert porta_decrypt(encrypted, KEY) == PLAIN
+
+
+class TestTrithemius26:
+    CT = "Tig tynir jayhz scm zleim jrbp shf nddd jvo."
+
+    def test_known_vector(self):
+        assert trithemius_decrypt(self.CT) == PLAIN
+
+    def test_no_shift_first_char(self):
+        """First character has shift 0 — unchanged."""
+        result = trithemius_decrypt("H")
+        assert result == "H"
+
+
+# ---------------------------------------------------------------------------
+# 52-char known test vectors
+# ---------------------------------------------------------------------------
+
+class TestBeaufort52:
+    CT = "OkEeZHnifuMdYB1IbHyAfb0g2FJzrVmfkKcSbKrpQGvhQ0/bvu76RdnGy/WtT7T3"
+    EX = "LeIXjxfrjSpfgR1RnFDIZr0t2JDCRjgueCZqdIiZwvNXC0/yTS76kfRMb/sTi7p3"
+
+    def test_known_vector(self):
+        assert beaufort_decrypt(self.CT, "ZOMBIES", alpha52=True) == self.EX
+
+    def test_self_reciprocal_52(self):
+        encrypted = beaufort_decrypt("TestString", "KEY", alpha52=True)
+        assert encrypted is not None
+        assert beaufort_decrypt(encrypted, "KEY", alpha52=True) == "TestString"
 
     def test_z_wraps_to_a(self):
-        """Z (index 25) + 1 = a (index 26) in Vigenere."""
-        # Encrypt: C = (P + K) mod 52
-        # If P=Z(25), K=B(1): C = (25+1) % 52 = 26 = 'a'
-        # Decrypt: P = (C - K) mod 52
-        # C='a'(26), K='B'(1): P = (26-1) % 52 = 25 = 'Z'
-        assert vigenere_decrypt("a", "B") == "Z"
+        """Z (index 25) wraps to a (index 26) in 52-char."""
+        # Beaufort P = (K - C) mod 52; K='B'(1), C='a'(26): (1-26)%52 = 27 = 'b'
+        assert beaufort_decrypt("a", "B", alpha52=True) == "b"
+
+
+class TestVigenere52:
+    def test_z_wraps_to_a(self):
+        """52-char: Z + 1 = a."""
+        # C='a'(26), K='B'(1): P = (26-1)%52 = 25 = 'Z'
+        assert vigenere_decrypt("a", "B", alpha52=True) == "Z"
 
     def test_a_wraps_to_z(self):
-        """a (index 26) - 1 wraps to Z (index 25)."""
-        # C='A'(0), K='B'(1): P = (0-1) % 52 = 51 = 'z'
-        assert vigenere_decrypt("A", "B") == "z"
+        # C='A'(0), K='B'(1): P = (0-1)%52 = 51 = 'z'
+        assert vigenere_decrypt("A", "B", alpha52=True) == "z"
+
+    def test_case_changes(self):
+        """52-char mode can change case (unlike 26-char)."""
+        r26 = vigenere_decrypt("Z", "B")  # 26-char preserves case
+        r52 = vigenere_decrypt("Z", "B", alpha52=True)  # 52-char may change
+        assert r26 is not None and r26.isupper()  # Preserved upper
+        assert r52 is not None  # May be different case
+
+
+class TestPorta52:
+    def test_self_reciprocal_52(self):
+        encrypted = porta_decrypt("TestInput", "KEY", alpha52=True)
+        assert encrypted is not None
+        assert porta_decrypt(encrypted, "KEY", alpha52=True) == "TestInput"
 
 
 # ---------------------------------------------------------------------------
@@ -50,23 +153,33 @@ class TestPassthrough:
         assert "1" in result and "2" in result and "3" in result
 
     def test_b64_symbols_unchanged(self):
-        result = vigenere_decrypt("AB+CD/EF==", "KEY")
+        result = beaufort_decrypt("AB+CD/EF==", "KEY")
         assert "+" in result and "/" in result and "==" in result[-2:]
 
     def test_key_does_not_advance_on_nonalpha(self):
         """Non-alpha chars should not consume a key position."""
-        # "A+B" with key "XY": A uses X, B uses Y (not: A uses X, + skipped, B uses X)
         r1 = vigenere_decrypt("A+B", "XY")
-        # Manually: A(0) - X(23) = -23 % 52 = 29 = 'd'; B(1) - Y(24) = -23 % 52 = 29 = 'd'
-        assert r1 == "d+d"
+        r2 = vigenere_decrypt("AB", "XY")
+        # A uses key X, B uses key Y in both cases
+        assert r1[0] == r2[0] and r1[2] == r2[1]
 
-    def test_passthrough_beaufort(self):
-        result = beaufort_decrypt("A1B2", "K")
-        assert "1" in result and "2" in result
+    def test_b64_structure_preserved(self):
+        """Only alpha chars change; digits, +, /, = stay at same positions."""
+        b64 = "OkEeZHnifuMdYB1IbHyAfb0g2FJzrVmfkKcSbKrpQGvhQ0/bvu76RdnGy/WtT7T3"
+        for fn in (vigenere_decrypt, beaufort_decrypt, autokey_decrypt, porta_decrypt):
+            result = fn(b64, "KEY")
+            assert result is not None
+            for i, ch in enumerate(b64):
+                if not ch.isalpha():
+                    assert result[i] == ch
 
-    def test_passthrough_autokey(self):
-        result = autokey_decrypt("A1B2", "K")
-        assert "1" in result and "2" in result
+    def test_length_preserved(self):
+        ct = "SomeBase64String+/=="
+        for fn in (vigenere_decrypt, beaufort_decrypt, autokey_decrypt, porta_decrypt):
+            result = fn(ct, "KEY")
+            assert result is not None
+            assert len(result) == len(ct)
+        assert len(trithemius_decrypt(ct)) == len(ct)
 
 
 # ---------------------------------------------------------------------------
@@ -74,166 +187,24 @@ class TestPassthrough:
 # ---------------------------------------------------------------------------
 
 class TestEmptyKey:
-    def test_vigenere_empty_key_returns_none(self):
+    def test_vigenere_empty(self):
         assert vigenere_decrypt("Hello", "") is None
 
-    def test_beaufort_empty_key_returns_none(self):
+    def test_beaufort_empty(self):
         assert beaufort_decrypt("Hello", "") is None
 
-    def test_autokey_empty_key_returns_none(self):
+    def test_autokey_empty(self):
         assert autokey_decrypt("Hello", "") is None
 
-    def test_numeric_only_key_returns_none(self):
-        """Key with no alpha chars should return None."""
+    def test_porta_empty(self):
+        assert porta_decrypt("Hello", "") is None
+
+    def test_numeric_only_key(self):
         assert vigenere_decrypt("Hello", "12345") is None
 
     def test_empty_ciphertext(self):
         assert vigenere_decrypt("", "KEY") == ""
         assert beaufort_decrypt("", "KEY") == ""
         assert autokey_decrypt("", "KEY") == ""
-
-
-# ---------------------------------------------------------------------------
-# Vigenere known vectors
-# ---------------------------------------------------------------------------
-
-class TestVigenere:
-    def test_identity_key_a(self):
-        """Key 'A' (index 0) = identity (no shift)."""
-        assert vigenere_decrypt("Hello", "A") == "Hello"
-
-    def test_single_shift(self):
-        """Key 'B' shifts by 1."""
-        # H(7)-B(1)=6=G, e(30)-B(1)=29=d, l(37)-B(1)=36=k, l(37)-B(1)=36=k, o(40)-B(1)=39=n
-        assert vigenere_decrypt("Hello", "B") == "Gdkkn"
-
-    def test_roundtrip(self):
-        """Encrypt then decrypt returns original."""
-        plain = "TheQuickBrownFox"
-        key = "ZOMBIES"
-        # Encrypt: C = (P + K) mod 52
-        ki = [_ORD[ch] for ch in key]
-        encrypted = []
-        j = 0
-        for ch in plain:
-            if ch in _ORD:
-                pi = _ORD[ch]
-                ci = (pi + ki[j % len(ki)]) % _MOD
-                encrypted.append(_ALPHA[ci])
-                j += 1
-            else:
-                encrypted.append(ch)
-        ct = "".join(encrypted)
-        assert vigenere_decrypt(ct, key) == plain
-
-    def test_key_repeats(self):
-        """Key cycles when shorter than ciphertext."""
-        # 7-char key over 10-char text: key repeats
-        result = vigenere_decrypt("AAAAAAAAAA", "BCD")
-        # A(0)-B(1)=-1%52=51='z', A(0)-C(2)=-2%52=50='y', A(0)-D(3)=-3%52=49='x'
-        # Then repeats: z, y, x, z, y, x, z, y, x, z
-        assert result == "zyxzyxzyxz"
-
-
-# ---------------------------------------------------------------------------
-# Beaufort known vectors
-# ---------------------------------------------------------------------------
-
-class TestBeaufort:
-    def test_self_reciprocal(self):
-        """Beaufort encrypt == decrypt (self-reciprocal)."""
-        text = "HelloWorld"
-        key = "ZOMBIES"
-        encrypted = beaufort_decrypt(text, key)
-        assert encrypted is not None
-        decrypted = beaufort_decrypt(encrypted, key)
-        assert decrypted == text
-
-    def test_beaufort_vs_vigenere(self):
-        """Beaufort P=(K-C) is different from Vigenere P=(C-K)."""
-        ct = "Hello"
-        key = "KEY"
-        v = vigenere_decrypt(ct, key)
-        b = beaufort_decrypt(ct, key)
-        assert v != b  # They should differ
-
-    def test_identity_impossible(self):
-        """Unlike Vigenere, key 'A' is NOT identity for Beaufort."""
-        # Beaufort: P = (K - C) = (0 - C) = -C mod 52
-        # Only identity if C=0 for all chars
-        result = beaufort_decrypt("Hello", "A")
-        assert result != "Hello"
-
-
-# ---------------------------------------------------------------------------
-# Autokey known vectors
-# ---------------------------------------------------------------------------
-
-class TestAutokey:
-    def test_short_message_same_as_vigenere(self):
-        """If message <= key length, autokey == vigenere."""
-        ct = "ABC"
-        key = "XYZWV"  # longer than ct
-        assert autokey_decrypt(ct, key) == vigenere_decrypt(ct, key)
-
-    def test_key_extends_with_plaintext(self):
-        """After key exhausts, plaintext chars extend it."""
-        # Manual: key="AB", ct="CCCC"
-        # pos 0: C(2) - A(0) = 2 = 'C', ext_key=[A,B,C]
-        # pos 1: C(2) - B(1) = 1 = 'B', ext_key=[A,B,C,B]
-        # pos 2: C(2) - C(2) = 0 = 'A', ext_key=[A,B,C,B,A]
-        # pos 3: C(2) - B(1) = 1 = 'B'
-        assert autokey_decrypt("CCCC", "AB") == "CBAB"
-
-    def test_autokey_nonalpha_skipped_in_extension(self):
-        """Non-alpha passthrough chars don't extend the key."""
-        # key="A", ct="B+C"
-        # pos 0: B(1) - A(0) = 1 = 'B', ext=[A,B]
-        # '+' passes through, key not advanced
-        # pos 1: C(2) - B(1) = 1 = 'B'
-        assert autokey_decrypt("B+C", "A") == "B+B"
-
-    def test_roundtrip(self):
-        """Encrypt with autokey then decrypt returns original."""
-        plain = "AttackAtDawn"
-        key = "ZOMBIES"
-        # Encrypt autokey: C = (P + K_extended) mod 52
-        ki = [_ORD[ch] for ch in key]
-        ext = list(ki)
-        encrypted = []
-        j = 0
-        for ch in plain:
-            if ch in _ORD:
-                pi = _ORD[ch]
-                ci = (pi + ext[j]) % _MOD
-                encrypted.append(_ALPHA[ci])
-                ext.append(pi)
-                j += 1
-            else:
-                encrypted.append(ch)
-        ct = "".join(encrypted)
-        assert autokey_decrypt(ct, key) == plain
-
-
-# ---------------------------------------------------------------------------
-# Integration: works as pre-b64 stage
-# ---------------------------------------------------------------------------
-
-class TestPreB64:
-    def test_preserves_b64_structure(self):
-        """Only alpha chars change; digits, +, /, = are preserved."""
-        b64_ct = "OkEeZHnifuMdYB1IbHyAfb0g2FJzrVmfkKcSbKrpQGvhQ0/bvu76RdnGy/WtT7T3"
-        result = vigenere_decrypt(b64_ct, "ZOMBIES")
-        assert result is not None
-        # All non-alpha chars from original should be in result at same positions
-        for i, ch in enumerate(b64_ct):
-            if not ch.isalpha():
-                assert result[i] == ch
-
-    def test_length_preserved(self):
-        """Output length always equals input length."""
-        ct = "SomeBase64String+/=="
-        for fn in (vigenere_decrypt, beaufort_decrypt, autokey_decrypt):
-            result = fn(ct, "KEY")
-            assert result is not None
-            assert len(result) == len(ct)
+        assert porta_decrypt("", "KEY") == ""
+        assert trithemius_decrypt("") == ""

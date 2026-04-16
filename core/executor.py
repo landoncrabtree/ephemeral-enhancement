@@ -36,7 +36,13 @@ from stages.mcrypt_registry import (
 from stages.mcrypt_stage import mcrypt_decrypt_stage
 from stages.mcrypt_wrapper import McryptHandleCache
 from stages.myszkowski import myszkowski_decrypt
-from stages.polyalpha import autokey_decrypt, beaufort_decrypt, vigenere_decrypt
+from stages.polyalpha import (
+    autokey_decrypt,
+    beaufort_decrypt,
+    porta_decrypt,
+    trithemius_decrypt,
+    vigenere_decrypt,
+)
 from stages.railfence import railfence_decrypt
 from stages.redefense import redefense_decrypt
 from stages.reverse import reverse_text
@@ -194,9 +200,15 @@ class StageExecutor:
         elif stage == "xor":
             return self._execute_xor(payload, kind, param_idxs, axis_pos, meta)
 
-        elif stage in ("vigenere", "beaufort", "autokey"):
+        elif stage in ("vigenere", "beaufort", "autokey", "porta",
+                      "vigenere52", "beaufort52", "autokey52", "porta52"):
             return self._execute_polyalpha(
                 stage, payload, kind, param_idxs, axis_pos, meta
+            )
+
+        elif stage in ("trithemius", "trithemius52"):
+            return self._execute_trithemius(
+                stage, payload, kind, meta, axis_pos
             )
 
         elif stage == "reverse":
@@ -455,6 +467,11 @@ class StageExecutor:
         "vigenere": vigenere_decrypt,
         "beaufort": beaufort_decrypt,
         "autokey": autokey_decrypt,
+        "porta": porta_decrypt,
+        "vigenere52": vigenere_decrypt,
+        "beaufort52": beaufort_decrypt,
+        "autokey52": autokey_decrypt,
+        "porta52": porta_decrypt,
     }
 
     def _execute_polyalpha(
@@ -466,19 +483,37 @@ class StageExecutor:
         axis_pos: int,
         meta: Dict[str, Any],
     ) -> tuple[str | bytes, Kind, int] | None:
-        """Execute a polyalphabetic cipher stage (vigenere/beaufort/autokey)."""
+        """Execute a polyalphabetic cipher stage (vigenere/beaufort/autokey/porta)."""
         if kind != "text":
             return None
 
         ki_combined = param_idxs[axis_pos]
         key = self._get_effective_key(ki_combined)
-        meta[f"{stage}_key"] = key
+        base_name = stage.removesuffix("52")
+        meta[f"{base_name}_key"] = key
+        alpha52 = stage.endswith("52")
 
         fn = self._POLYALPHA_FNS[stage]
-        result = fn(payload, key)  # type: ignore[arg-type]
+        result = fn(payload, key, alpha52=alpha52)  # type: ignore[arg-type]
         if result is None:
             return None
         return (result, kind, axis_pos + 1)
+
+    def _execute_trithemius(
+        self,
+        stage: str,
+        payload: str | bytes,
+        kind: Kind,
+        meta: Dict[str, Any],
+        axis_pos: int,
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Trithemius cipher stage (keyless)."""
+        if kind != "text":
+            return None
+        alpha52 = stage.endswith("52")
+        meta["trithemius_applied"] = True
+        result = trithemius_decrypt(payload, alpha52=alpha52)  # type: ignore[arg-type]
+        return (result, kind, axis_pos)
 
     def _execute_reverse(
         self,

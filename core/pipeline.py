@@ -24,7 +24,9 @@ from .utils import N_CASE_VARIANTS
 _CLASSICAL_STAGES = {
     "affine",
     "autokey",
+    "autokey52",
     "beaufort",
+    "beaufort52",
     "caesar",
     "bifid",
     "columnar",
@@ -32,8 +34,13 @@ _CLASSICAL_STAGES = {
     "b64",
     "hex",
     "myszkowski",
+    "porta",
+    "porta52",
     "redefense",
+    "trithemius",
+    "trithemius52",
     "vigenere",
+    "vigenere52",
     "xor",
     "railfence",
     "reverse",
@@ -113,7 +120,8 @@ def axes_for_pipeline(
         elif st == "railfence":
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
         elif st in ("bifid", "columnar", "myszkowski", "redefense", "xor",
-                    "vigenere", "beaufort", "autokey"):
+                    "vigenere", "beaufort", "autokey", "porta",
+                    "vigenere52", "beaufort52", "autokey52", "porta52"):
             axes.append(StageAxis(st, k))
         elif st == "double_columnar":
             axes.append(StageAxis("double_columnar", k * k))
@@ -124,7 +132,7 @@ def axes_for_pipeline(
             iv_mult = N_IV_STRATEGIES if info.needs_iv else 1
             size = k * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES * iv_mult
             axes.append(StageAxis(st, size))
-        elif st in ("b64", "hex", "reverse"):
+        elif st in ("b64", "hex", "reverse", "trithemius", "trithemius52"):
             continue
     return axes
 
