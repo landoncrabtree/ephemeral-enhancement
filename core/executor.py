@@ -24,7 +24,8 @@ from stages.double_columnar import double_columnar_decrypt
 from stages.key_derivation import N_KEY_DERIVATION_MODES, derive_key
 from stages.mcrypt_registry import (
     IV_ASCII_ZERO,
-    IV_FROM_KEY,
+    IV_KEY_ASCII_ZERO_PAD,
+    IV_KEY_NULL_PAD,
     IV_NULL_BYTES,
     KEY_PAD_ASCII_ZERO,
     N_IV_STRATEGIES,
@@ -476,18 +477,22 @@ class StageExecutor:
         iv: bytes | None = None
         iv_label = "none"
         if info.needs_iv:
-            if iv_idx == IV_FROM_KEY:
-                # IV = key bytes, truncated/padded with \x00 to iv_size
-                iv = key[: info.iv_size]
-                if len(iv) < info.iv_size:
-                    iv = iv + b"\x00" * (info.iv_size - len(iv))
-                iv_label = "from-key"
+            if iv_idx == IV_NULL_BYTES:
+                iv = b"\x00" * info.iv_size
+                iv_label = "null"
             elif iv_idx == IV_ASCII_ZERO:
                 iv = b"0" * info.iv_size
                 iv_label = "ascii-0"
-            elif iv_idx == IV_NULL_BYTES:
-                iv = b"\x00" * info.iv_size
-                iv_label = "null"
+            elif iv_idx == IV_KEY_NULL_PAD:
+                iv = key[: info.iv_size]
+                if len(iv) < info.iv_size:
+                    iv = iv + b"\x00" * (info.iv_size - len(iv))
+                iv_label = "key+null"
+            elif iv_idx == IV_KEY_ASCII_ZERO_PAD:
+                iv = key[: info.iv_size]
+                if len(iv) < info.iv_size:
+                    iv = iv + b"0" * (info.iv_size - len(iv))
+                iv_label = "key+ascii0"
 
         # Record metadata
         meta[f"{stage}_key"] = key_str

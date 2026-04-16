@@ -55,13 +55,15 @@ KEY_PAD_ASIS = 0
 KEY_PAD_ASCII_ZERO = 1
 
 # Number of IV strategies (only applies to modes that need an IV)
-# 0 = IV derived from key (key bytes zero-padded/truncated to iv_size)
-# 1 = IV is ASCII "0" (0x30) repeated to iv_size
-# 2 = IV is null byte (0x00) repeated to iv_size
-N_IV_STRATEGIES = 3
-IV_FROM_KEY = 0
+# 0 = null bytes: IV is 0x00 repeated to iv_size
+# 1 = ASCII zero: IV is "0" (0x30) repeated to iv_size
+# 2 = key + null pad: IV is key[:iv_size] padded with 0x00
+# 3 = key + ascii-0 pad: IV is key[:iv_size] padded with "0" (0x30)
+N_IV_STRATEGIES = 4
+IV_NULL_BYTES = 0
 IV_ASCII_ZERO = 1
-IV_NULL_BYTES = 2
+IV_KEY_NULL_PAD = 2
+IV_KEY_ASCII_ZERO_PAD = 3
 
 
 @dataclass(frozen=True)
