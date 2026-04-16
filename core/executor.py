@@ -161,6 +161,9 @@ class StageExecutor:
         if stage == "b64":
             return self._execute_b64(payload, kind, axis_pos)
 
+        elif stage == "hex":
+            return self._execute_hex(payload, kind, axis_pos)
+
         elif stage == "affine":
             return self._execute_affine(payload, kind, param_idxs, axis_pos, meta)
 
@@ -212,6 +215,26 @@ class StageExecutor:
             return None
 
         # If fully printable, try to decode as text
+        if printable_ratio(decoded) == 1.0:
+            try:
+                return (decoded.decode("ascii"), "text", axis_pos)
+            except (UnicodeDecodeError, AttributeError):
+                return (decoded, "bytes", axis_pos)
+        else:
+            return (decoded, "bytes", axis_pos)
+
+    def _execute_hex(
+        self, payload: str | bytes, kind: Kind, axis_pos: int
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute hex decode stage (e.g. 'd865ec...' → bytes)."""
+        if kind != "text":
+            return None
+
+        try:
+            decoded = bytes.fromhex(payload.strip())  # type: ignore[union-attr]
+        except (ValueError, AttributeError):
+            return None
+
         if printable_ratio(decoded) == 1.0:
             try:
                 return (decoded.decode("ascii"), "text", axis_pos)
