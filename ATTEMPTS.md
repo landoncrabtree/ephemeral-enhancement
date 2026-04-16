@@ -33,6 +33,16 @@ Words: `Zombie`, `Zombies`, `TheGiant`, `TryThis` (with --vary-case: lowercase, 
 | 7 | `redefense>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 50s | v1 |
 | 8 | `caesar>b64>{mcrypt}` (alpha only) | All 99 | ~2.5M | 991* | 1.6min | v1 |
 | 9 | `b64>xor>{mcrypt}` | All 99 | ~300,000 | 0 | 46s | v1 |
+| 10 | `autokey>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 54s | v1 |
+| 11 | `autokey52>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 46s | v1 |
+| 12 | `beaufort>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 54s | v1 |
+| 13 | `beaufort52>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 46s | v1 |
+| 14 | `porta>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 55s | v1 |
+| 15 | `porta52>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 48s | v1 |
+| 16 | `trithemius>b64>{mcrypt}` | All 99 | ~1,200 | 0 | 17s | v1 |
+| 17 | `trithemius52>b64>{mcrypt}` | All 99 | ~1,200 | 0 | 17s | v1 |
+| 18 | `vigenere>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 55s | v1 |
+| 19 | `vigenere52>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 48s | v1 |
 
 \* Pipeline 8 hits are false positives: caesar with `all_printable` charset corrupts b64 characters, `b64decode(validate=False)` silently strips them, producing ~5-8 byte garbage that scores above 0.7 by random chance.
 
