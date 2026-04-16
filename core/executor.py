@@ -383,6 +383,19 @@ class StageExecutor:
         if result is None:
             return None
 
+        # Try PKCS5/7 unpadding (common when encryption tool added padding)
+        if info.is_block and len(result) > 0:
+            pad_byte = result[-1]
+            if 0 < pad_byte <= info.block_size and len(result) >= pad_byte:
+                if result[-pad_byte:] == bytes([pad_byte]) * pad_byte:
+                    result = result[:-pad_byte]
+
+        # Strip trailing null bytes (zero-padding from PHP mcrypt)
+        result = result.rstrip(b"\x00")
+
+        if not result:
+            return None
+
         # If fully printable, try to decode as text
         if printable_ratio(result) == 1.0:
             try:
