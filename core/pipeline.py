@@ -116,8 +116,8 @@ def axes_for_pipeline(
             from stages.affine import N_AFFINE_TOTAL
             axes.append(StageAxis("affine", N_AFFINE_TOTAL))
         elif st == "caesar":
-            from stages.caesar import N_CAESAR_CHARSET_MODES
-            axes.append(StageAxis("caesar", 26 * N_CAESAR_CHARSET_MODES))
+            from stages.caesar import N_CAESAR_TOTAL
+            axes.append(StageAxis("caesar", N_CAESAR_TOTAL))
         elif st == "railfence":
             axes.append(StageAxis("railfence", 29))  # 2-30 rails
         elif st == "scytale":

@@ -283,9 +283,21 @@ class StageExecutor:
         if kind != "text":
             return None
 
+        from stages.caesar import CAESAR_SHIFTS_PER_MODE
+
         idx = param_idxs[axis_pos]
-        charset_mode = idx // 26
-        shift = idx % 26
+        # Decode (charset_mode, shift) from flat index
+        # Ranges: [0..25]=alpha, [26..155]=alphanumeric, [156..250]=all_printable
+        charset_mode = 0
+        for mode, n_shifts in enumerate(CAESAR_SHIFTS_PER_MODE):
+            if idx < n_shifts:
+                charset_mode = mode
+                shift = idx
+                break
+            idx -= n_shifts
+        else:
+            return None
+
         charset_names = ["alpha", "alphanumeric", "all_printable"]
         meta["caesar_shift"] = shift
         meta["caesar_charset"] = charset_names[charset_mode]

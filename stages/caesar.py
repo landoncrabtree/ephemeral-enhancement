@@ -9,6 +9,13 @@ _ALL_PRINTABLE_SET = set(_ALL_PRINTABLE)
 _ALL_PRINTABLE_IDX = {ch: i for i, ch in enumerate(_ALL_PRINTABLE)}
 _ALL_PRINTABLE_MOD = len(_ALL_PRINTABLE)  # 95
 
+# Shifts per charset mode:
+#   alpha: 26 (letters mod 26)
+#   alphanumeric: LCM(26,10)=130 (letters mod 26, digits mod 10)
+#   all_printable: 95 (all printable mod 95)
+CAESAR_SHIFTS_PER_MODE = [26, 130, 95]
+N_CAESAR_TOTAL = sum(CAESAR_SHIFTS_PER_MODE)  # 251
+
 
 def _shift_alpha(ch: str, shift: int) -> str:
     """Shift only A-Z/a-z, leave everything else."""
