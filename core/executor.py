@@ -26,6 +26,7 @@ from stages.mcrypt_registry import (
     IV_ASCII_ZERO,
     IV_FROM_KEY,
     IV_NULL_BYTES,
+    KEY_PAD_ASCII_ZERO,
     N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
     get_stage_info,
@@ -454,15 +455,22 @@ class StageExecutor:
 
         key_str = self._get_effective_key(ki_combined)
 
+        # Key derivation: transform dictionary word into key bytes
+        key = derive_key(key_str, deriv_idx)
+
+        # Truncate if longer than algorithm's max key size
+        if len(key) > info.max_key_size:
+            key = key[: info.max_key_size]
+
         # Key padding strategy:
-        # 0 = as-is: derive key without forcing size, only truncate if > max
-        # 1 = zero-pad: derive and force to exactly max_key_size
-        if key_pad_idx == 1:
-            key = derive_key(key_str, deriv_idx, size=info.max_key_size)
+        # 0 = as-is: libmcrypt auto-pads short keys with \x00
+        # 1 = ascii-0-pad: pad with ASCII "0" (0x30) to max_key_size
+        if key_pad_idx == KEY_PAD_ASCII_ZERO:
+            if len(key) < info.max_key_size:
+                key = key + b"0" * (info.max_key_size - len(key))
+            meta[f"{stage}_key_pad"] = "ascii-0"
         else:
-            key = derive_key(key_str, deriv_idx)
-            if len(key) > info.max_key_size:
-                key = key[: info.max_key_size]
+            meta[f"{stage}_key_pad"] = "as-is"
 
         # IV strategy
         iv: bytes | None = None
@@ -483,7 +491,6 @@ class StageExecutor:
         # Record metadata
         meta[f"{stage}_key"] = key_str
         meta[f"{stage}_deriv"] = deriv_idx
-        meta[f"{stage}_key_pad"] = "zero-pad" if key_pad_idx == 1 else "as-is"
         meta[f"{stage}_iv"] = iv_label
 
         result = mcrypt_decrypt_stage(

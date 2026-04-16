@@ -47,9 +47,12 @@ BLOCK_MODES = ["ecb", "cbc", "cfb", "ofb", "nofb", "ctr"]
 IV_MODES = {"cbc", "cfb", "ofb", "nofb", "ctr"}
 
 # Number of key padding strategies
-# 0 = as-is (PHP behavior: pass key directly, no padding)
-# 1 = zero-pad to max_key_size
+# 0 = as-is: pass key to libmcrypt (it auto-pads short keys with \x00)
+# 1 = ascii-0-pad: pad key with ASCII "0" (0x30) to max_key_size
+# Both truncate first if key > max_key_size
 N_KEY_PAD_STRATEGIES = 2
+KEY_PAD_ASIS = 0
+KEY_PAD_ASCII_ZERO = 1
 
 # Number of IV strategies (only applies to modes that need an IV)
 # 0 = IV derived from key (key bytes zero-padded/truncated to iv_size)
