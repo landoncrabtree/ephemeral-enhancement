@@ -211,8 +211,7 @@ def test_3mcrypt_chain(cache):
     # Step 2: rc2-cfb (IV = "0" * 8)
     s1 = mcrypt_decrypt("rc2", "cfb", key, b"0" * 8, raw, handle_cache=cache)
     assert s1 is not None
-    s1 = s1[: len(raw)]  # CFB: truncate to input length
-    s1_text = _strip_mcrypt_output(s1).decode("ascii")
+    s1_text = _strip_mcrypt_output(s1[: len(raw)]).decode("ascii")
     # Output should be hex string
     assert all(c in "0123456789abcdef" for c in s1_text)
 
@@ -225,8 +224,7 @@ def test_3mcrypt_chain(cache):
     # Step 5: blowfish-cfb (IV = "0" * 8)
     s3 = mcrypt_decrypt("blowfish", "cfb", key, b"0" * 8, hex_bytes, handle_cache=cache)
     assert s3 is not None
-    s3 = s3[: len(hex_bytes)]  # CFB: truncate to input length
-    s3_text = _strip_mcrypt_output(s3).decode("ascii")
+    s3_text = _strip_mcrypt_output(s3[: len(hex_bytes)]).decode("ascii")
     # Output should be base64
     assert len(s3_text) > 100
 
@@ -236,8 +234,7 @@ def test_3mcrypt_chain(cache):
     # Step 7: loki97-cfb (IV = "0" * 16)
     s5 = mcrypt_decrypt("loki97", "cfb", key, b"0" * 16, s4, handle_cache=cache)
     assert s5 is not None
-    s5 = s5[: len(s4)]  # CFB: truncate to input length
-    text = _strip_mcrypt_output(s5).decode("utf-8")
+    text = _strip_mcrypt_output(s5[: len(s4)]).decode("utf-8")
 
     assert text.startswith("August, 1946. OSS report final T-7.")
     assert text.endswith("before the Russians.")
@@ -290,8 +287,7 @@ def test_xtea_reverse_caesar(cache):
     # Step 1: xtea-cfb (IV = null)
     s1 = mcrypt_decrypt("xtea", "cfb", key, b"\x00" * 8, raw, handle_cache=cache)
     assert s1 is not None
-    s1 = s1[: len(raw)]
-    s1_text = _strip_mcrypt_output(s1).decode("ascii", errors="replace")
+    s1_text = _strip_mcrypt_output(s1[: len(raw)]).decode("ascii", errors="replace")
 
     # Step 2: reverse
     rev = s1_text[::-1]

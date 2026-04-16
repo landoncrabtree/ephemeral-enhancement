@@ -620,12 +620,20 @@ class StageExecutor:
         meta[f"{stage}_deriv"] = DERIVATION_NAMES.get(deriv_idx, f"unknown-{deriv_idx}")
         meta[f"{stage}_iv"] = iv_label
 
+        input_len = len(data)
+
         result = mcrypt_decrypt_stage(
             data, info.algo, info.mode, key, iv,
             handle_cache=self.handle_cache,
         )
         if result is None:
             return None
+
+        # Stream-like modes (cfb, ofb, nofb, ctr) produce output matching
+        # input length.  libmcrypt may pad the input to a block boundary,
+        # creating extra garbage bytes — truncate them away.
+        if info.mode in ("cfb", "ofb", "nofb", "ctr", "stream"):
+            result = result[:input_len]
 
         # Try PKCS5/7 unpadding (common when encryption tool added padding)
         if info.is_block and len(result) > 0:
