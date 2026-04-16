@@ -228,7 +228,9 @@ class StageExecutor:
             return None
 
         try:
-            decoded = base64.b64decode(payload, validate=False)
+            # Pad to multiple of 4 if needed (some sources omit trailing '=')
+            padded = payload + "=" * ((4 - len(payload) % 4) % 4)  # type: ignore[operator]
+            decoded = base64.b64decode(padded, validate=False)
         except Exception:
             return None
 
@@ -249,7 +251,11 @@ class StageExecutor:
             return None
 
         try:
-            decoded = bytes.fromhex(payload.strip())  # type: ignore[union-attr]
+            hex_str = payload.strip()  # type: ignore[union-attr]
+            # Pad leading '0' for odd-length hex strings
+            if len(hex_str) % 2 != 0:
+                hex_str = "0" + hex_str
+            decoded = bytes.fromhex(hex_str)
         except (ValueError, AttributeError):
             return None
 

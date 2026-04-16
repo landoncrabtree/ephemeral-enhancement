@@ -47,9 +47,9 @@ class TestHexDecode:
         assert score is None
 
     def test_odd_length_hex(self):
-        """Odd-length hex string should fail."""
+        """Odd-length hex string gets padded with leading '0' and decoded."""
         score, meta = _run_hex("abc")
-        assert score is None
+        assert score is not None
 
     def test_empty_string(self):
         """Empty hex string produces empty bytes → score 0."""
