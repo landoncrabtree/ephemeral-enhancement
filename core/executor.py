@@ -558,8 +558,13 @@ class StageExecutor:
                 if result[-pad_byte:] == bytes([pad_byte]) * pad_byte:
                     result = result[:-pad_byte]
 
-        # Strip trailing null bytes (zero-padding from PHP mcrypt)
+        # Strip trailing null bytes (zero-padding from libmcrypt)
         result = result.rstrip(b"\x00")
+
+        # Strip trailing control characters (< 0x20) that commonly appear
+        # as block cipher padding residue
+        while result and result[-1] < 0x20:
+            result = result[:-1]
 
         if not result:
             return None
