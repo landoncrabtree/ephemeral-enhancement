@@ -32,6 +32,7 @@ Words: `Zombie`, `Zombies`, `TheGiant`, `TryThis` (with --vary-case: lowercase, 
 | 6 | `railfence>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 1.4min | v1 |
 | 7 | `redefense>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 50s | v1 |
 | 8 | `caesar>b64>{mcrypt}` (alpha only) | All 99 | ~2.5M | 991* | 1.6min | v1 |
+| 8b | `caesar>b64>{mcrypt}` (all 251 shifts) | All 99 | ~8.3M | 16793* | 3.0min | v1 |
 | 9 | `b64>xor>{mcrypt}` | All 99 | ~300,000 | 0 | 46s | v1 |
 | 10 | `autokey>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 54s | v1 |
 | 11 | `autokey52>b64>{mcrypt}` | All 99 | ~30,000 | 0 | 46s | v1 |
