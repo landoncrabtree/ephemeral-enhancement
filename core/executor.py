@@ -23,6 +23,10 @@ from stages.common import combined_score, printable_ratio
 from stages.double_columnar import double_columnar_decrypt
 from stages.key_derivation import N_KEY_DERIVATION_MODES, derive_key
 from stages.mcrypt_registry import (
+    IV_ASCII_ZERO,
+    IV_FROM_KEY,
+    IV_NULL_BYTES,
+    N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
     get_stage_info,
     is_mcrypt_stage,
@@ -436,9 +440,14 @@ class StageExecutor:
         data = payload  # type: ignore[assignment]
         param_idx = param_idxs[axis_pos]
 
-        # Decompose param_idx: ki_combined * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES
-        key_pad_idx = param_idx % N_KEY_PAD_STRATEGIES
-        rest = param_idx // N_KEY_PAD_STRATEGIES
+        # Decompose param_idx: ki * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES * N_IV_STRATEGIES
+        iv_mult = N_IV_STRATEGIES if info.needs_iv else 1
+
+        iv_idx = param_idx % iv_mult
+        rest = param_idx // iv_mult
+
+        key_pad_idx = rest % N_KEY_PAD_STRATEGIES
+        rest = rest // N_KEY_PAD_STRATEGIES
 
         deriv_idx = rest % N_KEY_DERIVATION_MODES
         ki_combined = rest // N_KEY_DERIVATION_MODES
@@ -455,17 +464,27 @@ class StageExecutor:
             if len(key) > info.max_key_size:
                 key = key[: info.max_key_size]
 
-        # IV always derived from key (zero-padded/truncated to iv_size)
+        # IV strategy
         iv: bytes | None = None
+        iv_label = "none"
         if info.needs_iv:
-            iv = key[: info.iv_size]
-            if len(iv) < info.iv_size:
-                iv = iv + b"\x00" * (info.iv_size - len(iv))
+            if iv_idx == IV_FROM_KEY:
+                iv = key[: info.iv_size]
+                if len(iv) < info.iv_size:
+                    iv = iv + b"\x00" * (info.iv_size - len(iv))
+                iv_label = "from-key"
+            elif iv_idx == IV_ASCII_ZERO:
+                iv = b"0" * info.iv_size
+                iv_label = "ascii-0"
+            elif iv_idx == IV_NULL_BYTES:
+                iv = b"\x00" * info.iv_size
+                iv_label = "null"
 
         # Record metadata
         meta[f"{stage}_key"] = key_str
         meta[f"{stage}_deriv"] = deriv_idx
         meta[f"{stage}_key_pad"] = "zero-pad" if key_pad_idx == 1 else "as-is"
+        meta[f"{stage}_iv"] = iv_label
 
         result = mcrypt_decrypt_stage(
             data, info.algo, info.mode, key, iv,

@@ -51,6 +51,15 @@ IV_MODES = {"cbc", "cfb", "ofb", "nofb", "ctr"}
 # 1 = zero-pad to max_key_size
 N_KEY_PAD_STRATEGIES = 2
 
+# Number of IV strategies (only applies to modes that need an IV)
+# 0 = IV derived from key (key bytes zero-padded/truncated to iv_size)
+# 1 = IV is ASCII "0" (0x30) repeated to iv_size
+# 2 = IV is null byte (0x00) repeated to iv_size
+N_IV_STRATEGIES = 3
+IV_FROM_KEY = 0
+IV_ASCII_ZERO = 1
+IV_NULL_BYTES = 2
+
 
 @dataclass(frozen=True)
 class McryptStageInfo:
