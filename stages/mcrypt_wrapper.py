@@ -210,11 +210,11 @@ class McryptHandle:
         iv_ptr = None
         if self.needs_iv:
             if iv is None:
-                iv = b"\x00" * self.iv_size
+                iv = b"0" * self.iv_size
             if len(iv) > self.iv_size:
                 iv = iv[: self.iv_size]
             elif len(iv) < self.iv_size:
-                iv = iv + b"\x00" * (self.iv_size - len(iv))
+                iv = iv + b"0" * (self.iv_size - len(iv))
             iv_buf = ctypes.create_string_buffer(iv)
             iv_ptr = ctypes.cast(iv_buf, ctypes.c_void_p)
 
