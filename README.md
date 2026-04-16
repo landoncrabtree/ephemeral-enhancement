@@ -8,12 +8,12 @@ This project provides a comprehensive framework for decrypting classical ciphers
 
 ### Key Features
 
-- 🔗 **Multi-stage pipelines**: Chain multiple cipher algorithms together (e.g., `caesar>bifid>b64>xor`)
-- ⚡ **High performance**: Multiprocessing support for parallel brute-forcing
-- 🎯 **Smart filtering**: English text scoring using frequency analysis and word matching
-- 📊 **Progress tracking**: Real-time progress updates and performance metrics
-- 🧩 **Modular design**: Easy to add new cipher stages
-- 🧪 **Well-tested**: Comprehensive test suite
+- **Multi-stage pipelines**: Chain multiple cipher algorithms together (e.g., `caesar>bifid>b64>xor`)
+- **High performance**: Multiprocessing support for parallel brute-forcing
+- **Smart filtering**: English text scoring using frequency analysis and word matching
+- **Progress tracking**: Real-time progress updates and performance metrics
+- **Modular design**: Easy to add new cipher stages
+- **Well-tested**: Comprehensive test suite
 
 ### Supported Ciphers
 
@@ -25,7 +25,7 @@ This project provides a comprehensive framework for decrypting classical ciphers
 - **XOR**: Repeating-key XOR cipher
 - **Base64**: Standard base64 decoding
 - **Reverse**: Simple text reversal
-- **Symmetric (bytes input, use after b64)**: All **libmcrypt** algorithms via native C bindings — **Rijndael (AES-128/192/256)**, **DES**, **3DES**, **Blowfish**, **Twofish**, **Serpent**, **CAST-128/256**, **RC2**, **GOST**, **Loki97**, **Saferplus**, **XTEA**, **RC4 (Arcfour)**, **WAKE**, **Enigma**, and more. All block cipher modes supported: ECB, CBC, CFB, OFB, nOFB, CTR. Uses PHP `mcrypt_decrypt()` compatible semantics (zero-padding, key handling). Use pipelines like `b64>rijndael-128-ecb` or `b64>des-cbc`. Old aliases (`aes_ecb`, `rc4`, etc.) still work.
+- **Symmetric (bytes input, use after b64)**: All **libmcrypt** algorithms via native C bindings — **Rijndael (AES-128/192/256)**, **DES**, **3DES**, **Blowfish**, **Twofish**, **Serpent**, **CAST-128/256**, **RC2**, **GOST**, **Loki97**, **Saferplus**, **XTEA**, **RC4 (Arcfour)**, **WAKE**, **Enigma**, and more. All block cipher modes supported: ECB, CBC, CFB, OFB, nOFB, CTR. Uses PHP `mcrypt_decrypt()` compatible semantics (zero-padding, key handling). Use pipelines like `b64>rijndael-128-ecb` or `b64>des-cbc`.
 
 ## Project Structure
 
@@ -434,6 +434,4 @@ Higher scores indicate better English text. Use `--threshold 1.7` or higher to f
 **A:** The individual cipher functions are available in `stages/*.py`. Import and use them directly in Python.
 
 ---
-
-**Happy cipher breaking! 🔐🧩**
 

@@ -22,14 +22,18 @@ Words: `Zombie`, `Zombies`, `Trythis`, `TheGiant` (with lowercase, uppercase, mi
 | 5 | `myszkowski>b64>{mcrypt}` | 99 | ~36,864 | 99 | 0 | ~7 min* | 2026-04-16 |
 | 6 | `railfence>b64>{mcrypt}` | 99 | ~36,864 | 99 | 0 | ~7 min* | 2026-04-16 |
 | 7 | `redefense>b64>{mcrypt}` | 99 | ~36,864 | 99 | 0 | ~7 min* | 2026-04-16 |
-| 8 | `caesar>b64>{mcrypt}` | 99 | ~36,864 | 99 | 0 | ~7 min* | 2026-04-16 |
+| 8 | `caesar>b64>{mcrypt}` (alpha only) | 99 | ~36,864 | 99 | 0 | ~7 min* | 2026-04-16 |
 | 9 | `b64>xor>{mcrypt}` | 99 | ~36,864 | 99 | 0 | ~7 min* | 2026-04-16 |
+| 10 | `caesar>b64>{mcrypt}` (3 charsets) | 99 | ~14,976 | 99 | 0 | ~1.7 min | 2026-04-16 |
+| 11 | `affine>b64>{mcrypt}` (3 charsets) | 20† | ~1,730,304 | 20 | 0 | ~7.5 min | 2026-04-16 |
 
 \* Runs 4–9 were batched together in ~7 minutes total (594 runs).
 
+† Affine limited to: AES (128/192/256 ECB+CBC), DES ECB+CBC, 3DES ECB+CBC, Blowfish ECB+CBC, Twofish ECB+CBC, Arcfour, CAST-128 ECB+CBC, Serpent ECB+CBC, XTEA ECB.
+
 ### Summary
 
-- **Total pipeline runs:** 891
+- **Total pipeline runs:** 1,010
 - **Total hits:** 0
 - **Threshold:** 1.5
 - **Workers:** 4
