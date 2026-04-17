@@ -11,6 +11,7 @@ import base64
 
 import pytest
 
+from stages.mcrypt_registry import get_stage_info
 from stages.mcrypt_wrapper import McryptHandleCache, mcrypt_decrypt
 from stages.polyalpha import beaufort_decrypt
 
@@ -197,11 +198,8 @@ XTEA_HEX_CT = (
     "dd65866c6389fddf8cf7285df6"
 )
 
-# The first byte of xtea-cfb output is garbled (CFB first-block artifact with
-# null IV), so the decrypted text starts with a replacement character. We check
-# the body of the text rather than an exact match.
 XTEA_PLAINTEXT_BODY = (
-    "ow that the many worlds are one, it has all reset. There are no "
+    "Now that the many worlds are one, it has all reset. There are no "
     "Apothicon, Keepers, or 115 knocking around to cause trouble."
 )
 
@@ -220,14 +218,17 @@ def _caesar_shift(text: str, shift: int) -> str:
 
 
 def test_xtea_reverse_caesar(cache):
-    """hex > xtea-cfb > reverse > caesar(shift=6)."""
+    """hex > xtea-cfb (IV prepended) > reverse > caesar(shift=6)."""
     raw = bytes.fromhex(XTEA_HEX_CT.replace(" ", "").replace("\n", ""))
     key = b"Zombies"
 
-    # Step 1: xtea-cfb (IV = null)
-    s1 = mcrypt_decrypt("xtea", "cfb", key, b"\x00" * 8, raw, handle_cache=cache)
+    # Step 1: xtea-cfb with prepended IV (first iv_size bytes = IV)
+    iv_size = get_stage_info("xtea-cfb").iv_size
+    iv = raw[:iv_size]
+    ct = raw[iv_size:]
+    s1 = mcrypt_decrypt("xtea", "cfb", key, iv, ct, handle_cache=cache)
     assert s1 is not None
-    s1_text = _strip_mcrypt_output(s1[: len(raw)]).decode("ascii", errors="replace")
+    s1_text = _strip_mcrypt_output(s1[: len(ct)]).decode("ascii", errors="replace")
 
     # Step 2: reverse
     rev = s1_text[::-1]

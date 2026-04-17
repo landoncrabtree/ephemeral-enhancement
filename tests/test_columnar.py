@@ -16,7 +16,9 @@ class TestColumnarTransposition:
     def test_rumkin_all_mode(self):
         """Rumkin: 'Move spaces, punctuation, and capitalization'."""
         ct = "s naiime h giaesh dsTsde."
-        assert columnar_decrypt(ct, "ZOMBIE", CHARSET_ALL) == "This is a hidden message."
+        assert (
+            columnar_decrypt(ct, "ZOMBIE", CHARSET_ALL) == "This is a hidden message."
+        )
 
     def test_rumkin_letters_only(self):
         """Rumkin: 'Move only letters' (case-insensitive)."""
@@ -102,11 +104,16 @@ class TestDoubleColumnarTransposition:
 
     def test_all_no_spaces(self):
         ct = "LEOOLLDRWH"
-        assert double_columnar_decrypt(ct, "ZOMBIE", "ATTACK", CHARSET_ALL) == "HELLOWORLD"
+        assert (
+            double_columnar_decrypt(ct, "ZOMBIE", "ATTACK", CHARSET_ALL) == "HELLOWORLD"
+        )
 
     def test_same_key_all_mode(self):
         ct = "oHldw olelr"
-        assert double_columnar_decrypt(ct, "ZOMBIE", "ZOMBIE", CHARSET_ALL) == "Hello world"
+        assert (
+            double_columnar_decrypt(ct, "ZOMBIE", "ZOMBIE", CHARSET_ALL)
+            == "Hello world"
+        )
 
     def test_empty_string(self):
         assert double_columnar_decrypt("", "KEY1", "KEY2") == ""
