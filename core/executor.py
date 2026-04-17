@@ -44,8 +44,11 @@ from stages.polyalpha import (
     trithemius_decrypt,
     vigenere_decrypt,
 )
-from stages.railfence import railfence_decrypt
-from stages.railfence import redefense_decrypt
+from stages.railfence import (
+    N_RAILFENCE_CHARSET_MODES,
+    railfence_decrypt,
+    redefense_decrypt,
+)
 from stages.reverse import reverse_text
 from stages.scytale import scytale_decrypt
 from stages.xor import repeating_xor
@@ -317,10 +320,13 @@ class StageExecutor:
         if kind != "text":
             return None
 
-        rails_idx = param_idxs[axis_pos]
+        combined = param_idxs[axis_pos]
+        charset_mode = combined // 29
+        rails_idx = combined % 29
         num_rails = rails_idx + 2  # 0-28 maps to 2-30 rails
         meta["railfence_rails"] = num_rails
-        result = railfence_decrypt(payload, num_rails)  # type: ignore[arg-type]
+        meta["railfence_charset"] = "letters_only" if charset_mode == 0 else "all"
+        result = railfence_decrypt(payload, num_rails, charset_mode=charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_scytale(
@@ -476,9 +482,13 @@ class StageExecutor:
             return None
 
         ki_combined = param_idxs[axis_pos]
-        key = self._get_effective_key(ki_combined)
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        charset_mode = ki_combined // n_eff
+        key_idx = ki_combined % n_eff
+        key = self._get_effective_key(key_idx)
         meta["redefense_key"] = key
-        result = redefense_decrypt(payload, key)  # type: ignore[arg-type]
+        meta["redefense_charset"] = "letters_only" if charset_mode == 0 else "all"
+        result = redefense_decrypt(payload, key, charset_mode=charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_xor(

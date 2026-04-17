@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from stages.key_derivation import N_KEY_DERIVATION_MODES
 from stages.columnar import N_COLUMNAR_CHARSET_MODES
+from stages.railfence import N_RAILFENCE_CHARSET_MODES
 from stages.mcrypt_registry import (
     N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
@@ -120,13 +121,15 @@ def axes_for_pipeline(
             from stages.caesar import N_CAESAR_TOTAL
             axes.append(StageAxis("caesar", N_CAESAR_TOTAL))
         elif st == "railfence":
-            axes.append(StageAxis("railfence", 29))  # 2-30 rails
+            axes.append(StageAxis("railfence", 29 * N_RAILFENCE_CHARSET_MODES))  # 2-30 rails × 2 modes
         elif st == "scytale":
             axes.append(StageAxis("scytale", 99))  # 2-100 columns
-        elif st in ("bifid", "myszkowski", "redefense", "xor",
+        elif st in ("bifid", "myszkowski", "xor",
                     "vigenere", "beaufort", "autokey", "porta",
                     "vigenere52", "beaufort52", "autokey52", "porta52"):
             axes.append(StageAxis(st, k))
+        elif st == "redefense":
+            axes.append(StageAxis("redefense", k * N_RAILFENCE_CHARSET_MODES))
         elif st == "columnar":
             axes.append(StageAxis("columnar", k * N_COLUMNAR_CHARSET_MODES))
         elif st == "double_columnar":
