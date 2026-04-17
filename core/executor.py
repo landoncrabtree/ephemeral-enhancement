@@ -20,7 +20,7 @@ from stages.bifid import bifid_decrypt
 from stages.caesar import N_CAESAR_CHARSET_MODES, caesar_shift_text
 from stages.columnar import N_COLUMNAR_CHARSET_MODES, columnar_decrypt
 from stages.common import combined_score, printable_ratio
-from stages.double_columnar import double_columnar_decrypt
+from stages.columnar import double_columnar_decrypt
 from stages.key_derivation import DERIVATION_NAMES, N_KEY_DERIVATION_MODES, derive_key
 from stages.mcrypt_registry import (
     IV_KEY_NULL_PAD,
@@ -45,7 +45,7 @@ from stages.polyalpha import (
     vigenere_decrypt,
 )
 from stages.railfence import railfence_decrypt
-from stages.redefense import redefense_decrypt
+from stages.railfence import redefense_decrypt
 from stages.reverse import reverse_text
 from stages.scytale import scytale_decrypt
 from stages.xor import repeating_xor

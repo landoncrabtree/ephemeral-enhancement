@@ -99,3 +99,17 @@ def columnar_decrypt(cipher: str, keyword: str, charset_mode: int = CHARSET_ALL)
         if i < len(decrypted):
             result[pos] = decrypted[i]
     return "".join(result)
+
+
+def double_columnar_decrypt(
+    cipher: str, key1: str, key2: str, charset_mode: int = CHARSET_ALL
+) -> str:
+    """
+    Decrypt double columnar transposition cipher.
+
+    If encryption was: C = col(col(P, key1), key2)
+    then decryption is: P = col_dec(col_dec(C, key2), key1)
+    """
+    return columnar_decrypt(
+        columnar_decrypt(cipher, key2, charset_mode), key1, charset_mode
+    )

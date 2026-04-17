@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stages.railfence import railfence_decrypt
+from stages.railfence import railfence_decrypt, redefense_decrypt
 
 
 class TestRailfenceCipher:
@@ -34,3 +34,22 @@ class TestRailfenceCipher:
         ciphertext = "ABC"
         result = railfence_decrypt(ciphertext, 3)
         assert isinstance(result, str)
+
+
+class TestRedefenseDecrypt:
+    def test_roundtrip_secretkey(self):
+        """Decrypt known ciphertext encrypted with SECRETKEY."""
+        assert redefense_decrypt("IEGHSAINHDADSMETSSEI", "SECRETKEY") == "THISISAHIDDENMESSAGE"
+
+    def test_roundtrip_simple(self):
+        assert redefense_decrypt("ELWRDHOLLO", "KEY") == "HELLOWORLD"
+
+    def test_single_char_key(self):
+        assert redefense_decrypt("HELLO", "A") == "HELLO"
+
+    def test_empty(self):
+        assert redefense_decrypt("", "KEY") == ""
+
+    def test_two_rail_key(self):
+        """Two-char key = standard rail fence with 2 rails."""
+        assert redefense_decrypt("HLOOLELWRD", "AB") == "HELLOWORLD"

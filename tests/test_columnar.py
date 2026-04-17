@@ -5,7 +5,7 @@ from stages.columnar import (
     CHARSET_LETTERS_ONLY,
     columnar_decrypt,
 )
-from stages.double_columnar import double_columnar_decrypt
+from stages.columnar import double_columnar_decrypt
 
 
 class TestColumnarTransposition:
