@@ -1,5 +1,9 @@
 """
-Polyalphabetic cipher stages: Vigenere, Beaufort, Autokey, Porta, Trithemius.
+Polyalphabetic cipher stages: Vigenere, Beaufort, Porta, Trithemius.
+
+Each cipher supports two key-stream modes:
+  - normal: Key repeats cyclically.
+  - autokey: Recovered plaintext extends the initial key (CrypTool "Autokey").
 
 Two alphabet modes:
   - 26-char (default): Case-insensitive A-Z with case preservation.
@@ -13,6 +17,12 @@ position — this preserves base64 structure when used as a pre-b64 stage.
 """
 
 from __future__ import annotations
+
+# ---------------------------------------------------------------------------
+# Mode constants
+# ---------------------------------------------------------------------------
+N_POLYALPHA_MODES = 2
+POLYALPHA_MODE_NAMES = ("normal", "autokey")
 
 # ---------------------------------------------------------------------------
 # 52-char alphabet helpers
@@ -145,12 +155,12 @@ def beaufort_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str
 
 
 # ---------------------------------------------------------------------------
-# Autokey (Vigenere variant — plaintext extends the key)
+# Autokey variants (plaintext extends the key)
 # ---------------------------------------------------------------------------
 
 def autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
     """
-    Autokey decrypt: Vigenere where recovered plaintext extends the key.
+    Vigenere autokey decrypt: P = (C - K) mod N, plaintext extends key.
 
     Returns None if key has no alpha characters.
     """
@@ -182,6 +192,103 @@ def autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str 
             cv = _char_val26(ch)
             if cv >= 0:
                 pv = (cv - ext[j]) % _MOD26
+                out.append(_val_to_char26(pv, ch))
+                ext.append(pv)
+                j += 1
+            else:
+                out.append(ch)
+        return "".join(out)
+
+
+def beaufort_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+    """
+    Beaufort autokey decrypt: P = (K - C) mod N, plaintext extends key.
+
+    Returns None if key has no alpha characters.
+    """
+    if alpha52:
+        kv = _key_vals52(key)
+        if not kv:
+            return None
+        ext = list(kv)
+        out: list[str] = []
+        j = 0
+        for ch in ciphertext:
+            if ch in _ORD52:
+                cv = _ORD52[ch]
+                pv = (ext[j] - cv) % _MOD52
+                out.append(_ALPHA52[pv])
+                ext.append(pv)
+                j += 1
+            else:
+                out.append(ch)
+        return "".join(out)
+    else:
+        kv = _key_vals26(key)
+        if not kv:
+            return None
+        ext = list(kv)
+        out = []
+        j = 0
+        for ch in ciphertext:
+            cv = _char_val26(ch)
+            if cv >= 0:
+                pv = (ext[j] - cv) % _MOD26
+                out.append(_val_to_char26(pv, ch))
+                ext.append(pv)
+                j += 1
+            else:
+                out.append(ch)
+        return "".join(out)
+
+
+def porta_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+    """
+    Porta autokey decrypt: Porta substitution with plaintext extending key.
+
+    Recovered plaintext values are appended to the key stream (raw values;
+    they are reduced by // 2 when applied as Porta pair indices).
+
+    Returns None if key has no alpha characters.
+    """
+    if alpha52:
+        kv = _key_vals52(key)
+        if not kv:
+            return None
+        ext = list(kv)
+        half = _MOD52 // 2  # 26
+        out: list[str] = []
+        j = 0
+        for ch in ciphertext:
+            if ch in _ORD52:
+                cv = _ORD52[ch]
+                k = ext[j] // 2
+                if cv < half:
+                    pv = half + (cv - k + half) % half
+                else:
+                    pv = (cv - half + k) % half
+                out.append(_ALPHA52[pv])
+                ext.append(pv)
+                j += 1
+            else:
+                out.append(ch)
+        return "".join(out)
+    else:
+        kv = _key_vals26(key)
+        if not kv:
+            return None
+        ext = list(kv)
+        half = 13
+        out = []
+        j = 0
+        for ch in ciphertext:
+            cv = _char_val26(ch)
+            if cv >= 0:
+                k = ext[j] // 2
+                if cv < half:
+                    pv = half + (cv - k + half) % half
+                else:
+                    pv = (cv - half + k) % half
                 out.append(_val_to_char26(pv, ch))
                 ext.append(pv)
                 j += 1

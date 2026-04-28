@@ -38,8 +38,12 @@ from stages.mcrypt_stage import mcrypt_decrypt_stage
 from stages.mcrypt_wrapper import McryptHandleCache
 from stages.myszkowski import myszkowski_decrypt
 from stages.polyalpha import (
+    N_POLYALPHA_MODES,
+    POLYALPHA_MODE_NAMES,
     autokey_decrypt,
+    beaufort_autokey_decrypt,
     beaufort_decrypt,
+    porta_autokey_decrypt,
     porta_decrypt,
     trithemius_decrypt,
     vigenere_decrypt,
@@ -205,8 +209,8 @@ class StageExecutor:
         elif stage == "xor":
             return self._execute_xor(payload, kind, param_idxs, axis_pos, meta)
 
-        elif stage in ("vigenere", "beaufort", "autokey", "porta",
-                      "vigenere52", "beaufort52", "autokey52", "porta52"):
+        elif stage in ("vigenere", "beaufort", "porta",
+                      "vigenere52", "beaufort52", "porta52"):
             return self._execute_polyalpha(
                 stage, payload, kind, param_idxs, axis_pos, meta
             )
@@ -522,15 +526,22 @@ class StageExecutor:
         else:
             return (xor_result, "bytes", axis_pos + 1)
 
-    _POLYALPHA_FNS = {
+    _POLYALPHA_NORMAL_FNS = {
         "vigenere": vigenere_decrypt,
         "beaufort": beaufort_decrypt,
-        "autokey": autokey_decrypt,
         "porta": porta_decrypt,
         "vigenere52": vigenere_decrypt,
         "beaufort52": beaufort_decrypt,
-        "autokey52": autokey_decrypt,
         "porta52": porta_decrypt,
+    }
+
+    _POLYALPHA_AUTOKEY_FNS = {
+        "vigenere": autokey_decrypt,
+        "beaufort": beaufort_autokey_decrypt,
+        "porta": porta_autokey_decrypt,
+        "vigenere52": autokey_decrypt,
+        "beaufort52": beaufort_autokey_decrypt,
+        "porta52": porta_autokey_decrypt,
     }
 
     def _execute_polyalpha(
@@ -542,17 +553,24 @@ class StageExecutor:
         axis_pos: int,
         meta: Dict[str, Any],
     ) -> tuple[str | bytes, Kind, int] | None:
-        """Execute a polyalphabetic cipher stage (vigenere/beaufort/autokey/porta)."""
+        """Execute a polyalphabetic cipher stage (vigenere/beaufort/porta) in normal or autokey mode."""
         if kind != "text":
             return None
 
-        ki_combined = param_idxs[axis_pos]
+        combined = param_idxs[axis_pos]
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        mode = combined // n_eff
+        ki_combined = combined % n_eff
         key = self._get_effective_key(ki_combined)
         base_name = stage.removesuffix("52")
         meta[f"{base_name}_key"] = key
+        meta[f"{base_name}_mode"] = POLYALPHA_MODE_NAMES[mode]
         alpha52 = stage.endswith("52")
 
-        fn = self._POLYALPHA_FNS[stage]
+        if mode == 0:
+            fn = self._POLYALPHA_NORMAL_FNS[stage]
+        else:
+            fn = self._POLYALPHA_AUTOKEY_FNS[stage]
         result = fn(payload, key, alpha52=alpha52)  # type: ignore[arg-type]
         if result is None:
             return None

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from stages.key_derivation import N_KEY_DERIVATION_MODES
 from stages.columnar import N_COLUMNAR_CHARSET_MODES
 from stages.railfence import N_RAILFENCE_CHARSET_MODES
+from stages.polyalpha import N_POLYALPHA_MODES
 from stages.mcrypt_registry import (
     N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
@@ -25,8 +26,6 @@ from .utils import N_CASE_VARIANTS
 # Classical cipher stages (non-mcrypt)
 _CLASSICAL_STAGES = {
     "affine",
-    "autokey",
-    "autokey52",
     "beaufort",
     "beaufort52",
     "caesar",
@@ -124,10 +123,11 @@ def axes_for_pipeline(
             axes.append(StageAxis("railfence", 29 * N_RAILFENCE_CHARSET_MODES))  # 2-30 rails × 2 modes
         elif st == "scytale":
             axes.append(StageAxis("scytale", 99))  # 2-100 columns
-        elif st in ("bifid", "myszkowski", "xor",
-                    "vigenere", "beaufort", "autokey", "porta",
-                    "vigenere52", "beaufort52", "autokey52", "porta52"):
+        elif st in ("bifid", "myszkowski", "xor"):
             axes.append(StageAxis(st, k))
+        elif st in ("vigenere", "beaufort", "porta",
+                    "vigenere52", "beaufort52", "porta52"):
+            axes.append(StageAxis(st, k * N_POLYALPHA_MODES))
         elif st == "redefense":
             axes.append(StageAxis("redefense", k * N_RAILFENCE_CHARSET_MODES))
         elif st == "columnar":
