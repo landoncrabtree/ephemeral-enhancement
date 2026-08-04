@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, minimize_scalar
 
 from .extract import ink_coverage, segment_lines
 from .fit import coarse_search, correlation, fit_line
@@ -77,21 +77,114 @@ def _fit_layout(
     sizes: np.ndarray,
     trackings: np.ndarray,
     rounds: int = 2,
+    fixed_size: float | None = None,
 ) -> tuple[list[float], float, float, float]:
-    """Fit pen positions, size and baseline for one line of known text."""
+    """Fit pen positions, size and baseline for one line of known text.
+
+    With ``fixed_size`` the size is held and only position is fitted, which is what the
+    global-size path uses.
+    """
     seed = coarse_search(renderer, observed, text, sizes, trackings, 4.0, 40.0)
     fit = fit_line(renderer, observed, text, *seed)
 
     size_px, baseline_y = fit.size_px, fit.baseline_y
+    if fixed_size is not None:
+        size_px = fixed_size
     pens = renderer.pen_positions(text, size_px, fit.tracking_px, fit.x0)
     for _ in range(rounds):
         pens = track_pens(
             renderer, observed, text, size_px, fit.tracking_px, fit.x0, baseline_y
         )
-        size_px, baseline_y = _refit_scale(
-            renderer, observed, text, pens, size_px, baseline_y
-        )
+        if fixed_size is None:
+            size_px, baseline_y = _refit_scale(
+                renderer, observed, text, pens, size_px, baseline_y
+            )
+        else:
+            baseline_y = _refit_baseline(
+                renderer, observed, text, pens, size_px, baseline_y
+            )
     return pens, size_px, baseline_y, fit.tracking_px
+
+
+def _refit_baseline(
+    renderer: FontRenderer,
+    observed: np.ndarray,
+    text: str,
+    pens: list[float],
+    size_px: float,
+    baseline_y: float,
+) -> float:
+    """Re-estimate the baseline with size and pen positions held fixed."""
+    height, width = observed.shape
+    mass = max(float(observed.sum()), 1e-6)
+
+    def cost(baseline: float) -> float:
+        rendered = renderer.render_placed(
+            list(text), pens, size_px, float(baseline), width, height
+        )
+        return float(((observed - rendered) ** 2).sum() / mass)
+
+    result = minimize_scalar(
+        cost, bounds=(baseline_y - 3.0, baseline_y + 3.0), method="bounded",
+        options={"xatol": 5e-3},
+    )
+    return float(result.x)
+
+
+def fit_global_size(
+    renderer: FontRenderer,
+    observed_lines: list[np.ndarray],
+    texts: list[str],
+    sizes: np.ndarray,
+    trackings: np.ndarray,
+) -> float:
+    """Fit one font size shared by every line.
+
+    Size and tracking are partially degenerate — larger glyphs with tighter tracking
+    occupy nearly the same width — so a per-line fit can settle anywhere along a shallow
+    valley, and the scatter that produces is the dominant error term. Body text on a
+    single texture is set at one size, so fitting it once against all lines at once
+    resolves the degeneracy with far more evidence and puts every line on the same
+    reference scale, which matters because the discriminator references are evaluated at
+    the fitted size.
+    """
+    seeds = [
+        fit_line(
+            renderer, obs, text, *coarse_search(renderer, obs, text, sizes, trackings, 4.0, 40.0)
+        )
+        for obs, text in zip(observed_lines, texts)
+    ]
+
+    def total_cost(size_px: float) -> float:
+        total = 0.0
+        for obs, text, seed in zip(observed_lines, texts, seeds):
+            height, width = obs.shape
+
+            def cost(baseline: float) -> float:
+                pens = track_pens(
+                    renderer, obs, text, size_px, seed.tracking_px, seed.x0, baseline
+                )
+                rendered = renderer.render_placed(
+                    list(text), pens, size_px, float(baseline), width, height
+                )
+                return float(((obs - rendered) ** 2).sum())
+
+            total += minimize_scalar(
+                cost,
+                bounds=(seed.baseline_y - 2.5, seed.baseline_y + 2.5),
+                method="bounded",
+                options={"xatol": 2e-2},
+            ).fun
+        return total
+
+    grid = np.arange(float(sizes[0]), float(sizes[-1]) + 0.01, 0.4)
+    scores = [total_cost(s) for s in grid]
+    best = float(grid[int(np.argmin(scores))])
+    refined = minimize_scalar(
+        total_cost, bounds=(best - 0.4, best + 0.4), method="bounded",
+        options={"xatol": 1e-2},
+    )
+    return float(refined.x)
 
 
 def analyse_line(
@@ -104,6 +197,7 @@ def analyse_line(
     trackings: np.ndarray,
     rounds: int = 2,
     passes: int = 3,
+    fixed_size: float | None = None,
 ) -> LineReport:
     """Fit the layout of one line, then measure every confusable glyph in it.
 
@@ -117,7 +211,7 @@ def analyse_line(
     current = text
     seen: set[str] = set()
     pens, size_px, baseline_y, tracking_px = _fit_layout(
-        renderer, observed, current, sizes, trackings, rounds
+        renderer, observed, current, sizes, trackings, rounds, fixed_size
     )
     verdicts: list[GlyphVerdict] = []
 
@@ -136,7 +230,7 @@ def analyse_line(
         seen.add(current)
         current = resolved
         pens, size_px, baseline_y, tracking_px = _fit_layout(
-            renderer, observed, current, sizes, trackings, rounds
+            renderer, observed, current, sizes, trackings, rounds, fixed_size
         )
 
     height, width = observed.shape
@@ -167,6 +261,9 @@ def main() -> None:
                              "Any 0/O/I/l may be guessed; they get re-decided.")
     parser.add_argument("--min-size", type=float, default=44.0)
     parser.add_argument("--max-size", type=float, default=49.0)
+    parser.add_argument("--per-line-size", action="store_true",
+                        help="Fit font size independently per line instead of once "
+                             "globally. Noisier; kept for diagnostics.")
     parser.add_argument("--json", help="Write the full per-glyph report here.")
     args = parser.parse_args()
 
@@ -184,6 +281,13 @@ def main() -> None:
     sizes = np.arange(args.min_size, args.max_size + 0.01, 0.25)
     trackings = np.arange(0.0, 3.01, 0.25)
 
+    global_size: float | None = None
+    if not args.per_line_size and len(lines) > 1:
+        global_size = fit_global_size(
+            renderer, [line.coverage for line in lines], texts, sizes, trackings
+        )
+        print(f"global font size: {global_size:.2f} px (shared by all lines)\n")
+
     reports: list[LineReport] = []
     for line, text in zip(lines, texts):
         report = analyse_line(
@@ -194,6 +298,7 @@ def main() -> None:
             line.index,
             sizes,
             trackings,
+            fixed_size=global_size,
         )
         reports.append(report)
         print(

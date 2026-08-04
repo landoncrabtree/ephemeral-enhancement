@@ -106,25 +106,32 @@ closed form by **FFT cross-correlation** — for each candidate (size, tracking)
 integer offset is the peak of the correlation surface, computed via `fftconvolve`. Only
 the remaining parameters go to the local optimiser.
 
-**4. Per-glyph tracking.** A single uniform tracking value accumulates error along a
+**4. Global size fit.** Font size and tracking are partially degenerate — larger glyphs
+with tighter tracking span nearly the same width — so a per-line fit can settle anywhere
+along a shallow valley. Body text on one texture is set at a single size, so it is fitted
+once against all lines jointly. This matters beyond tidiness: the discriminator
+references are evaluated *at the fitted size*, so per-line size scatter propagates
+directly into every measurement. Pass `--per-line-size` to disable.
+
+**5. Per-glyph tracking.** A single uniform tracking value accumulates error along a
 line; by the far end, glyphs are misplaced by several pixels and windows land on the
 wrong glyph. Instead each glyph is located sequentially left to right, seeded from the
 *measured* position of its predecessor plus one advance width. This keeps the local
 search window small regardless of how the line's true tracking differs from the fitted
 average.
 
-**5. Isolation.** Inter-glyph gaps are only ~4 px, so neighbouring ink contaminates any
+**6. Isolation.** Inter-glyph gaps are only ~4 px, so neighbouring ink contaminates any
 measurement window. Two mechanisms remove it: all *other* glyphs are rendered from the
 fitted layout and subtracted, and the result is masked to the union of the two
 candidates' renders dilated by 2 px, so residue outside the glyph's plausible support
 cannot enter the integral.
 
-**6. Discrimination.** The relevant descriptor is evaluated on the isolated patch and on
+**7. Discrimination.** The relevant descriptor is evaluated on the isolated patch and on
 clean renders of both candidates at the fitted size. The result is expressed as a
 position between the two references, so the output states not just which letter but how
 far from the decision boundary the measurement fell.
 
-**7. Convergence.** `0` and `O` have different advance widths (426 vs 477 units), so a
+**8. Convergence.** `0` and `O` have different advance widths (426 vs 477 units), so a
 wrong character in the input transcription displaces every glyph after it and degrades
 the fit. The tool therefore does not trust its input: it fits the layout, decides every
 ambiguous glyph, substitutes the results, and **re-fits with the corrected text**,
@@ -325,7 +332,7 @@ The layout fit is a measurement in its own right. For the Der Riese texture (102
 | Property | Value | Notes |
 | --- | --- | --- |
 | Typeface | Franklin Gothic URW Comp **Book** | Book fits at 0.977 correlation, Demi at 0.790 |
-| Font size | **45.70 ± 0.23 px** | body lines; ~46 px is a fair round number |
+| Font size | **45.57 px** | fitted once across all lines |
 | Character spacing | **0.93 ± 0.14 px** (≈20/1000 em) | extra tracking on top of the font's own advances |
 | Line spacing | **91.0 ± 0.1 px** | 1.993 x font size, i.e. exactly double-spaced |
 | Left margin | **28.7 ± 0.1 px** | consistent across all five lines |
@@ -337,14 +344,12 @@ optimised: the left margin agrees to ±0.1 px across five lines that were fitted
 exactly 2.0x. Neither quantity is constrained by the fit, so their consistency is a
 genuine cross-check.
 
-Per-line spread is small but not zero (45.45–46.06 px). This is fit noise, not real
-variation — most likely all five lines were set identically at 46 px.
+Fitting size per line instead scatters it over 44.7–46.5 px purely as fit noise; every
+line's residual curve peaks at the same 45.6 px when scanned directly.
 
 ### Reconstruction quality
 
-Line correlations 0.9911–0.9952, RMS coverage error 0.037–0.050. Line 3 is consistently
-the weakest, and is also the line whose tracking estimate (0.70 px) departs from the
-others; it contains the most tightly-set glyph pairs.
+Line correlations **0.9949–0.9955**, uniform across all five lines.
 
 The residual panel is the useful diagnostic. A correct fit leaves only **thin, symmetric
 outlines** at glyph edges — that is sub-pixel edge placement and antialiasing-model
@@ -354,39 +359,49 @@ The Der Riese reconstruction shows only the former.
 
 ### Confidence
 
-All 14 ambiguous glyphs resolved with no low-confidence results.
+All 14 ambiguous glyphs resolve with no low-confidence results.
 
 ```
 glyphs decided: 14      low-confidence: 0
-margins:  min 61.1%     median 114.5%   max 251.2%
+margins:  min 68.5%     median 112.7%   max 261.2%
 ```
 
-The measurements are cleanly bimodal with no overlap, which is the strongest available
-evidence that the discriminator is reading real structure rather than noise:
+Per-glyph **measurement precision is ±0.5 font units**, established by re-measuring every
+glyph under 12 combinations of window padding, central-row fraction and global size
+(±0.4 px). All 7 `I`/`l` verdicts hold in 12/12 settings.
 
 ```
-I/l stem width (units)          0/O aspect
-  l  64.23                        0  0.5936
-  l  66.30                        0  0.5948
-  l  67.13                        0  0.5997
-  l  69.68    <- l cluster max    ------------ boundary 0.611
-  ------------ boundary 72.2      O  0.6268
-  I  74.62    <- I cluster min    O  0.6305
-  I  76.72                        O  0.6322
-  I  81.83                        O  0.6382
+I/l stem width (units)                0/O aspect
+  l  64.5 +-0.5                         0  0.5936
+  l  66.4 +-0.5                         0  0.5950
+  l  67.4 +-0.5                         0  0.5950
+  l  69.6 +-0.5   <- closest to         ---------- boundary 0.611
+  ---------------- boundary 72.5        O  0.6259
+  I  74.9 +-0.5   <- closest to         O  0.6283
+  I  76.6 +-0.6                         O  0.6306
+  I  82.3 +-0.8                         O  0.6382
 ```
 
-Nearest approach to the `I`/`l` boundary is 2.4 units, against a 7.7-unit reference gap.
+The two glyphs nearest the boundary sit 2.9 and 2.4 units away, against a ±0.5 unit
+measurement error — roughly 5σ each. The worst case, line 1 index 39 at 74.9, is 2.2σ
+from `I` but 12σ from `l`.
 
-### Error threshold
+Note the cluster *spread* (~5 units) is much larger than the measurement error (±0.5).
+That spread is real per-glyph bias from neighbour context and rasterisation phase, not
+noise, which is why the decision uses each glyph's own value against fixed references
+rather than cluster membership.
 
-The `??` flag triggers below 25% margin. In practice a margin under ~30% means the
-measurement fell in the middle third between references and should be checked by eye. On
-this texture nothing came close.
+For `0`/`O` the gap is 0.031 against a within-cluster spread of 0.0014 — over 20x.
 
-Dominant error sources, in order: fitted font size (~0.5% across lines, versus a 10%
-target separation for `I`/`l`), residue from imperfect neighbour subtraction on tightly
-spaced glyphs, and background estimation near the page's torn border.
+### A note on advance width
+
+`I` and `l` also differ in advance width (204 vs 187 units), which is tempting as an
+independent second opinion. In practice it is far weaker: recovering it requires two
+accurate pen positions and a tracking estimate, giving a per-glyph spread of 7–10 units
+against a 17-unit gap (~2σ), and it shifts with the fitted size. It agrees with the stem
+measurement on 6 of 7 glyphs and disagrees marginally on the weakest one, where the stem
+measurement is 12σ decisive. It is therefore **not used**, and should not be treated as
+confirmation.
 
 ### Hinting is a hard requirement
 
