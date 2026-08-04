@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ephemeral Enhancement — Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Ephemeral Enhancement</h1>
+  <p class="sub">Distributed cipher pipeline tracker</p>
+  {% if version and version.short_sha %}
+    <p class="version">
+      upstream <a href="{{ version.url }}" target="_blank"><code>{{ version.short_sha }}</code></a>
+      — {{ version.message }}
+    </p>
+  {% endif %}
+</header>
+
+<section class="stats">
+  <div class="stat"><span class="n">{{ "{:,}".format(stats.runs) }}</span><span class="l">runs</span></div>
+  <div class="stat"><span class="n">{{ "{:,}".format(stats.combos) }}</span><span class="l">combinations</span></div>
+  <div class="stat"><span class="n">{{ "{:,}".format(stats.hits) }}</span><span class="l">hits</span></div>
+  <div class="stat"><span class="n">{{ stats.runners }}</span><span class="l">runners</span></div>
+  <div class="stat"><span class="n">{{ stats.ciphertexts }}</span><span class="l">targets</span></div>
+  <div class="stat"><span class="n">{{ "%.1f"|format((stats.seconds or 0) / 3600) }}h</span><span class="l">compute</span></div>
+</section>
+
+{% if targets %}
+<section>
+  <h2>Targets</h2>
+  <table>
+    <thead><tr><th>Label</th><th>Ciphertext</th><th class="r">Runs</th><th class="r">Combos</th><th class="r">Hits</th><th class="r">Best</th></tr></thead>
+    <tbody>
+    {% for t in targets %}
+      <tr>
+        <td>{{ t.label or "—" }}</td>
+        <td><a href="/?ct={{ t.ciphertext_sha }}"><code>{{ t.ciphertext_sha[:12] }}</code></a></td>
+        <td class="r">{{ "{:,}".format(t.runs) }}</td>
+        <td class="r">{{ "{:,}".format(t.combos) }}</td>
+        <td class="r">{% if t.hits %}<b class="hit">{{ t.hits }}</b>{% else %}0{% endif %}</td>
+        <td class="r">{{ "%.3f"|format(t.best_score) if t.best_score else "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section>
+  <h2>Runs</h2>
+  <form method="get" class="filters">
+    <input type="text" name="q" value="{{ q }}" placeholder="search pipeline / runner / label">
+    {% if ct %}<input type="hidden" name="ct" value="{{ ct }}">{% endif %}
+    <label><input type="checkbox" name="only_hits" value="true" {% if only_hits %}checked{% endif %}> hits only</label>
+    <button type="submit">Filter</button>
+    {% if q or ct or only_hits %}<a class="clear" href="/">clear</a>{% endif %}
+  </form>
+
+  {% if not runs %}
+    <p class="empty">No runs recorded yet. Join with
+      <code>python run_pipeline.py --join-network &lt;token&gt;</code></p>
+  {% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Pipeline</th><th>Target</th><th class="r">Combos</th>
+        <th class="r">Hits</th><th class="r">Best</th><th class="r">Time</th>
+        <th>Runner</th><th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in runs %}
+      <tr class="{% if r.hits %}has-hit{% endif %}">
+        <td><a href="/run/{{ r.fingerprint }}"><code>{{ r.pipeline }}</code></a>
+            {% if r.status != 'complete' %}<span class="badge">{{ r.status }}</span>{% endif %}
+            {% if r.vary_case %}<span class="badge alt">vary-case</span>{% endif %}</td>
+        <td><code>{{ r.ciphertext_label or r.ciphertext_sha[:10] }}</code></td>
+        <td class="r">{{ "{:,}".format(r.combos or 0) }}</td>
+        <td class="r">{% if r.hits %}<b class="hit">{{ r.hits }}</b>{% else %}0{% endif %}</td>
+        <td class="r">{{ "%.3f"|format(r.best_score) if r.best_score else "—" }}</td>
+        <td class="r">{{ "%.1fs"|format(r.duration_s) if r.duration_s else "—" }}</td>
+        <td>{{ r.runner or "—" }}</td>
+        <td class="dim">{{ r.created_at }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+
+<footer>
+  <p>Runs are keyed by a fingerprint of the <em>whole searched space</em> —
+     stages, axis sizes, dictionary and flags. If a stage gains new parameters,
+     the fingerprint changes and the pipeline becomes runnable again.</p>
+</footer>
+</body>
+</html>

@@ -33,6 +33,11 @@ class PipelineConfig:
         bifid_alphabet: Alphabet for bifid cipher ("standard" or "base64")
         dry_run: Only show parameter space size, don't run
         vary_case: Try lowercase, uppercase, title case for each wordlist key
+        join_network: One-time join token to save to ~/.ee/config
+        server: Tracker server base URL (saved alongside the token)
+        runner: Label recorded against submitted runs
+        no_track: Skip the tracker for this run
+        force: Run even if the tracker reports this space as already searched
     """
 
     ciphertext: str
@@ -47,6 +52,11 @@ class PipelineConfig:
     bifid_alphabet: str
     dry_run: bool
     vary_case: bool
+    join_network: str | None = None
+    server: str | None = None
+    runner: str | None = None
+    no_track: bool = False
+    force: bool = False
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -78,7 +88,7 @@ Examples:
     ap.add_argument(
         "--ciphertext",
         type=str,
-        default="kCmlgFi6GUJNgkNI1Q41fbfyLoCFTCvIqkZiI0KIAXAzP1U1uy1BE4UfPBfpKmmLObjYnQNRBaPtKiVWzc5A4v0w3xle8FOhAGJZ7g4in0wndJxMOvO3dc1M82at2T6935roTqyWDgtGD/hwwRF3oHqFM5Vcw1JtINbsgWRm4o4/quEDkZ7x1B275bX3/Fo1",
+        default="kCmlgFi6GUJNgkNI1Q41fbfyLoCFTCvlqkZil0KIAXAzP1U1uy1BE4UfPBfpKmmLObjYnQNRBaPtKiVWzc5A4v0w3xle8FOhAGJZ7g4in0wndJxMOvO3dc1M82at2T6935roTqyWDgtGD/hwwRF3oHqFM5Vcw1JtINbsgWRm4o4/quEDkZ7x1B275bX3/Fo1",
         help="Ciphertext to decrypt",
     )
 
@@ -94,7 +104,7 @@ Examples:
     ap.add_argument(
         "--pipeline",
         type=str,
-        required=True,
+        default=None,
         help="Pipeline stages separated by '>' (e.g., caesar>bifid>b64>xor)",
     )
 
@@ -162,6 +172,39 @@ Examples:
         help="Try lowercase, uppercase, and title case for each dictionary word (3x key tries, computed at runtime)",
     )
 
+    net = ap.add_argument_group("run tracking (optional)")
+    net.add_argument(
+        "--join-network",
+        dest="join_network",
+        metavar="TOKEN",
+        type=str,
+        help="Save a tracker join token to ~/.ee/config and exit. Do this once; "
+        "later runs reuse the stored token automatically.",
+    )
+    net.add_argument(
+        "--server",
+        type=str,
+        default=None,
+        help="Tracker server base URL (stored with --join-network)",
+    )
+    net.add_argument(
+        "--runner",
+        type=str,
+        default=None,
+        help="Label recorded against your runs (defaults to user@hostname)",
+    )
+    net.add_argument(
+        "--no-track",
+        dest="no_track",
+        action="store_true",
+        help="Do not contact the tracker for this run",
+    )
+    net.add_argument(
+        "--force",
+        action="store_true",
+        help="Run even if the tracker says this search space was already covered",
+    )
+
     return ap
 
 
@@ -174,6 +217,10 @@ def parse_args() -> PipelineConfig:
     """
     parser = create_argument_parser()
     args = parser.parse_args()
+
+    # --pipeline is optional only so that --join-network can be used alone.
+    if not args.join_network and not args.pipeline:
+        parser.error("the following arguments are required: --pipeline")
 
     return PipelineConfig(
         ciphertext=args.ciphertext,
@@ -188,4 +235,9 @@ def parse_args() -> PipelineConfig:
         bifid_alphabet=args.bifid_alphabet,
         dry_run=args.dry_run,
         vary_case=args.vary_case,
+        join_network=args.join_network,
+        server=args.server,
+        runner=args.runner,
+        no_track=args.no_track,
+        force=args.force,
     )

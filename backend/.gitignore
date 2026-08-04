@@ -1,0 +1,5 @@
+.env
+runs.db
+runs.db-wal
+runs.db-shm
+.venv/
