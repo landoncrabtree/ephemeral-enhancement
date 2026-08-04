@@ -23,8 +23,8 @@ build-backend = "hatchling.build"
 packages = ["core", "stages"]
 include = [
     "run_pipeline.py",
-    "dictionary.txt",
-    "common.txt",
+    "dicts/full_dictionary.txt",
+    "dicts/zombies.txt",
     "scripts/build_mcrypt.sh",
 ]
 

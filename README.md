@@ -41,8 +41,9 @@ bo3_ciphers/
 ├── README.md                 # This file
 ├── ATTEMPTS.md              # Brute-force attempt log
 ├── run_pipeline.py          # Main entry point
-├── dictionary.txt           # Dictionary of keys to try
-├── test_dict.txt            # Short test dictionary (4 words × 4 cases)
+├── dicts/                   # Key dictionaries
+│   ├── full_dictionary.txt  # Full dictionary of keys to try (default)
+│   └── zombies.txt          # Short BO3 Zombies-specific dictionary
 ├── pytest.ini              # Pytest configuration
 │
 ├── core/                   # Core pipeline logic (modular architecture)
@@ -141,7 +142,7 @@ python3 run_pipeline.py --pipeline "caesar" --ciphertext "KHOOR ZRUOG"
 python run_pipeline.py \
     --pipeline "caesar>b64>rijndael-128-cbc" \
     --ciphertext "YOUR_CIPHERTEXT_HERE" \
-    --dictionary dictionary.txt \
+    --dictionary dicts/full_dictionary.txt \
     --vary-case \
     --threshold 1.7 \
     --workers 4
@@ -153,7 +154,7 @@ python run_pipeline.py \
 |----------|------|---------|-------------|
 | `--pipeline` | str | *required* | Cipher stages separated by `>` (e.g., `caesar>b64>rijndael-128-cbc`) |
 | `--ciphertext` | str | *(TG-1)* | The ciphertext to decrypt |
-| `--dictionary` | str | `dictionary.txt` | Path to dictionary file for keys |
+| `--dictionary` | str | `dicts/full_dictionary.txt` | Path to dictionary file for keys |
 | `--key_limit` | int | `0` | Limit dictionary to first N keys (0 = all, WARNING: huge search space) |
 | `--threshold` | float | `0.80` | Minimum score to report results (recommend 1.5-1.7 for English) |
 | `--max_hits` | int | `50` | Maximum number of results to display (0 = unlimited) |
@@ -181,7 +182,7 @@ python run_pipeline.py \
 ```bash
 python run_pipeline.py \
     --pipeline "b64>rijndael-128-cbc" \
-    --dictionary dictionary.txt \
+    --dictionary dicts/full_dictionary.txt \
     --vary-case \
     --threshold 1.5 \
     --workers 4
@@ -192,7 +193,7 @@ python run_pipeline.py \
 ```bash
 python run_pipeline.py \
     --pipeline "caesar>b64>des-ecb" \
-    --dictionary test_dict.txt \
+    --dictionary dicts/zombies.txt \
     --vary-case \
     --threshold 1.5 \
     --workers 8
@@ -203,7 +204,7 @@ python run_pipeline.py \
 ```bash
 python run_pipeline.py \
     --pipeline "affine>b64>rijndael-128-cbc" \
-    --dictionary test_dict.txt \
+    --dictionary dicts/zombies.txt \
     --vary-case \
     --dry-run
 ```

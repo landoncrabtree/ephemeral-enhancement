@@ -8,8 +8,36 @@ enumeration for parameter space exploration.
 
 from __future__ import annotations
 
+import os
+
 # When --vary-case is used: try lowercase, uppercase, title case per word
 N_CASE_VARIANTS = 3  # 0=lower, 1=upper, 2=title
+
+# Project root (parent of the `core` package), used to resolve bundled data
+# files such as the dictionaries in `dicts/` regardless of the current
+# working directory.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def resolve_data_path(path: str) -> str:
+    """
+    Resolve a data file path, falling back to the project root.
+
+    A relative path is first tried as-is (relative to the current working
+    directory); if it does not exist, it is resolved against the project
+    root so bundled files like ``dicts/full_dictionary.txt`` work from
+    anywhere.
+
+    Args:
+        path: Absolute or relative path to a data file
+
+    Returns:
+        The path to use when opening the file
+    """
+    if os.path.isabs(path) or os.path.exists(path):
+        return path
+    candidate = os.path.join(PROJECT_ROOT, path)
+    return candidate if os.path.exists(candidate) else path
 
 
 def apply_case_variant(word: str, variant: int) -> str:
@@ -42,7 +70,7 @@ def load_dictionary(path: str) -> list[str]:
     Returns:
         List of words (stripped of whitespace)
     """
-    with open(path, "r") as f:
+    with open(resolve_data_path(path), "r") as f:
         return [w.strip() for w in f if w.strip()]
 
 

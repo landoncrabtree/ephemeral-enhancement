@@ -240,6 +240,28 @@ def test_xtea_reverse_caesar(cache):
     assert "focus on the children" in plaintext
 
 
+def test_xtea_zero_string_iv_recovers_signature(cache):
+    """IV = "0"*8 (not prepended) recovers the full text incl. the en-dash sign-off."""
+    from stages.common import combined_score
+
+    raw = bytes.fromhex(XTEA_HEX_CT.replace(" ", "").replace("\n", ""))
+    iv_size = get_stage_info("xtea-cfb").iv_size
+
+    s1 = mcrypt_decrypt("xtea", "cfb", b"Zombies", b"0" * iv_size, raw,
+                        handle_cache=cache)
+    assert s1 is not None
+    text = _strip_mcrypt_output(s1[: len(raw)]).decode("utf-8")
+    plaintext = _caesar_shift(text[::-1], 6)
+
+    # CFB is self-synchronising: only the first block depends on the IV, and
+    # `reverse` moves it to the tail, so a wrong IV silently clips the sign-off.
+    assert XTEA_PLAINTEXT_BODY in plaintext
+    assert plaintext.rstrip().endswith("better place. \u2013M")
+
+    # The en dash must not push the score below the printable cutoff
+    assert combined_score(plaintext.encode("utf-8")) > 1.5
+
+
 # ---------------------------------------------------------------------------
 # Test 4: hex > reverse > hex > blowfish-compat-cfb > b64
 #   Double-hex ciphertext -> hex -> reverse -> hex

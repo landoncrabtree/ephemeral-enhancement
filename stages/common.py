@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Iterator, Literal
 
@@ -13,14 +14,67 @@ class Candidate:
     meta: Dict[str, Any] = field(default_factory=dict)
 
 
+# Non-ASCII codepoint ranges that legitimately appear in English prose.
+# Plaintexts in this project contain typographic punctuation (en/em dashes,
+# curly quotes, ellipses), which are multi-byte in UTF-8.  Counting those
+# bytes as non-printable drops printable_ratio below 1.0 and collapses
+# combined_score under 1.0, ranking a correct decryption below plain ASCII
+# garbage.  The ranges stay narrow (Latin + General Punctuation) so that
+# Cyrillic, CJK, and emoji still read as binary noise.
+_EXTENDED_PRINTABLE_RANGES = (
+    (0x00A0, 0x00FF),  # Latin-1 supplement: nbsp, «», °, ©, accented letters
+    (0x0100, 0x017F),  # Latin Extended-A
+    (0x2010, 0x2027),  # dashes, curly quotes, bullet, ellipsis
+    (0x2030, 0x205E),  # per-mille, primes, single guillemets
+    (0x20A0, 0x20BF),  # currency symbols
+    (0x2120, 0x2122),  # service mark, trademark
+)
+
+# Materialised once; excludes control/format/unassigned codepoints (category C)
+EXTENDED_PRINTABLE = frozenset(
+    chr(cp)
+    for lo, hi in _EXTENDED_PRINTABLE_RANGES
+    for cp in range(lo, hi + 1)
+    if not unicodedata.category(chr(cp)).startswith("C")
+)
+
+# ASCII whitespace that should not be penalised
+_ASCII_WHITESPACE = (9, 10, 13)
+
+
+def is_printable_char(ch: str) -> bool:
+    """
+    Return True if a character counts as printable for scoring purposes.
+
+    Covers printable ASCII, tab/newline/carriage return, and the typographic
+    punctuation and Latin letters in EXTENDED_PRINTABLE.
+    """
+    o = ord(ch)
+    if 32 <= o < 127 or o in _ASCII_WHITESPACE:
+        return True
+    return ch in EXTENDED_PRINTABLE
+
+
 def printable_ratio(b: bytes) -> float:
     """
-    Returns the ratio of printable ASCII characters (0.0 to 1.0).
+    Returns the ratio of printable characters (0.0 to 1.0).
+
+    If the bytes decode as UTF-8 the ratio is computed over characters, so
+    typographic punctuation (em dash, curly quotes, ellipsis) counts as
+    printable.  Otherwise it falls back to a per-byte printable-ASCII count,
+    which keeps binary payloads scoring below 1.0.
     """
     if not b:
         return 0.0
-    printable = sum(1 for x in b if 32 <= x < 127 or x in (9, 10, 13))
-    return printable / len(b)
+
+    try:
+        text = b.decode("utf-8")
+    except UnicodeDecodeError:
+        printable = sum(1 for x in b if 32 <= x < 127 or x in _ASCII_WHITESPACE)
+        return printable / len(b)
+
+    printable = sum(1 for ch in text if is_printable_char(ch))
+    return printable / len(text)
 
 
 # English letter frequencies (from most to least common)
@@ -141,7 +195,8 @@ def english_score(text: str, common_words: set[str] | None = None) -> float:
         word_match_score = 0.0
 
     # Space ratio bonus: English text typically has 15-20% spaces
-    space_count = text.count(" ")
+    # Count the non-breaking space too, since it survives as whitespace
+    space_count = text.count(" ") + text.count("\u00a0")
     if len(text) > 0:
         space_ratio = space_count / len(text)
         # Ideal space ratio is around 0.15-0.20 (15-20%)
@@ -164,9 +219,12 @@ def combined_score(b: bytes, common_words: set[str] | None = None) -> float:
     Combined scoring: printable_ratio (0-1) + english_score (0-1).
 
     Returns:
-    - < 1.0: Contains non-printable bytes (ratio of printable bytes)
+    - < 1.0: Contains non-printable bytes (ratio of printable characters)
     - = 1.0: Fully printable but no English characteristics
     - > 1.0: Fully printable + English-like (up to 2.0 for perfect English)
+
+    Typographic punctuation (em dash, curly quotes, ellipsis) is treated as
+    printable, so prose containing it is not penalised below 1.0.
     """
     pr = printable_ratio(b)
 

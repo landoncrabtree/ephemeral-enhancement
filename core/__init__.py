@@ -10,7 +10,12 @@ This package contains the modular components of the cipher brute-forcing pipelin
 - utils: Utility functions
 """
 
-from .args import PipelineConfig, create_argument_parser, parse_args
+from .args import (
+    DEFAULT_DICTIONARY,
+    PipelineConfig,
+    create_argument_parser,
+    parse_args,
+)
 from .executor import StageExecutor
 from .parallel import ExecutionResults, ParallelExecutor, display_results
 from .pipeline import (
@@ -21,10 +26,12 @@ from .pipeline import (
     validate_pipeline,
 )
 from .utils import (
+    PROJECT_ROOT,
     limit_keys,
     load_common_words,
     load_dictionary,
     mixed_radix_unrank,
+    resolve_data_path,
 )
 from .worker import WorkerState, init_worker, process_chunk
 
@@ -33,6 +40,7 @@ __all__ = [
     "PipelineConfig",
     "create_argument_parser",
     "parse_args",
+    "DEFAULT_DICTIONARY",
     # pipeline
     "VALID_STAGES",
     "StageAxis",
@@ -54,4 +62,6 @@ __all__ = [
     "limit_keys",
     "load_common_words",
     "mixed_radix_unrank",
+    "resolve_data_path",
+    "PROJECT_ROOT",
 ]

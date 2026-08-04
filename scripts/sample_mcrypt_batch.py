@@ -34,7 +34,7 @@ for pipe_template, label in pipelines:
             "--pipeline",
             pipeline,
             "--dictionary",
-            "test_dict.txt",
+            "dicts/zombies.txt",
             "--vary-case",
             "--threshold",
             "0.7",

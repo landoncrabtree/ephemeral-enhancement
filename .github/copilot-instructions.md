@@ -17,7 +17,7 @@ python -m pytest tests/test_polyalpha.py -v
 python -m pytest tests/test_polyalpha.py::TestVigenere26::test_known_vector
 
 # Run the pipeline (brute-force)
-python run_pipeline.py --pipeline "vigenere>b64>rijndael-256-ecb" --ciphertext "..." --dictionary dictionary.txt
+python run_pipeline.py --pipeline "vigenere>b64>rijndael-256-ecb" --ciphertext "..." --dictionary dicts/full_dictionary.txt
 
 # Dry run (show search space size without executing)
 python run_pipeline.py --pipeline "caesar>b64" --ciphertext "..." --dry-run
@@ -58,6 +58,13 @@ The pipeline tracks payload as either `"text"` (str) or `"bytes"`. Stages declar
 - 1.0 = printable but not English
 - \> 1.0 = English-like (frequency analysis + common word matching)
 - → 2.0 = strong English
+
+`printable_ratio()` decodes UTF-8 when possible and counts characters, so
+typographic punctuation (em/en dashes, curly quotes, ellipsis) and Latin-1
+accented letters count as printable (`EXTENDED_PRINTABLE`). Non-Latin scripts
+and undecodable bytes still fall below 1.0. Executor stages gate text
+conversion on `decode("utf-8")`, not ASCII, so such plaintexts stay `"text"`
+and remain usable by downstream text stages.
 
 ## Key Conventions
 
@@ -109,7 +116,8 @@ Keyless stages (reverse, trithemius, b64) don't increment `axis_pos`.
 
 ### Dictionary and Keys
 
-- `dictionary.txt` — Full key dictionary (one word per line)
-- `zombie_dict.txt` — BO3 Zombies-specific terms
+- `dicts/full_dictionary.txt` — Full key dictionary (one word per line), the `--dictionary` default
+- `dicts/zombies.txt` — BO3 Zombies-specific terms
+- Relative `--dictionary` paths that don't exist in the cwd are resolved against the project root (`core/utils.py:resolve_data_path`)
 - Non-alphabetic entries exist in dictionary files; ciphers with alpha-only keys handle empty effective keys by returning `None`
 - `--vary-case` multiplies key space ×3 (lower/upper/title)

@@ -10,6 +10,10 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
+# Default key dictionary shipped with the project (resolved against the
+# project root by core.utils.resolve_data_path when not found in the cwd).
+DEFAULT_DICTIONARY = "dicts/full_dictionary.txt"
+
 
 @dataclass
 class PipelineConfig:
@@ -81,8 +85,10 @@ Examples:
     ap.add_argument(
         "--dictionary",
         type=str,
-        default="dictionary.txt",
-        help="Path to dictionary file (one word per line)",
+        default=DEFAULT_DICTIONARY,
+        help="Path to dictionary file (one word per line). Relative paths that "
+        "don't exist in the current directory are resolved against the "
+        f"project root. Default: {DEFAULT_DICTIONARY}",
     )
 
     ap.add_argument(

@@ -229,9 +229,29 @@ Uses a 5×5 Polybius square (25-char alphabet, J→I). Period = message length (
 |-------|-------------|------------|
 | `b64` | Base64 decode | None |
 | `hex` | Hex decode | None |
+| `decimal` | Decimal character-code decode | None |
 | `reverse` | Reverse character order | None |
 
 These stages have no search space and don't contribute a parameter axis.
+
+### Decimal
+
+Folds text made of decimal character codes back into raw bytes
+(`"072 101 108 108 111"` → `b"Hello"`). Accepts codes delimited by
+whitespace, commas or semicolons, or an unbroken digit run whose length
+divides evenly by 3 (`"072101108"`), decoded as fixed-width 3-digit groups.
+Codes outside the byte range 0-255, non-numeric tokens and empty input all
+cause the stage to fail (returns `None`), pruning that branch of the search.
+
+Used by BO3 Revelations rev9, where a DES layer emits zero-padded 3-digit
+ASCII codes that must be decoded before the next base64 layer:
+
+```bash
+python run_pipeline.py \
+  --pipeline "b64>des-cfb>decimal>reverse>b64>twofish-cfb" \
+  --ciphertext "$(cat rev9.txt)" \
+  --dictionary dicts/zombies.txt --vary-case --threshold 1.7
+```
 
 ---
 

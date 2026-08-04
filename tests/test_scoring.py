@@ -32,6 +32,26 @@ class TestPrintableRatio:
         mixed = b"AB\x00\x01"
         assert printable_ratio(mixed) == 0.5
 
+    def test_typographic_punctuation_is_printable(self):
+        """Em/en dashes, curly quotes and ellipsis count as printable."""
+        text = "He said \u201cgo\u201d \u2014 then left\u2026 \u2013M"
+        assert printable_ratio(text.encode("utf-8")) == 1.0
+
+    def test_accented_latin_is_printable(self):
+        """Latin-1 accented letters count as printable."""
+        assert printable_ratio("caf\u00e9 na\u00efve".encode("utf-8")) == 1.0
+
+    def test_non_latin_scripts_are_not_printable(self):
+        """Cyrillic/CJK/emoji still read as non-printable noise."""
+        assert printable_ratio("\u043f\u0440\u0438\u0432\u0435\u0442".encode()) < 1.0
+        assert printable_ratio("\u65e5\u672c\u8a9e".encode("utf-8")) == 0.0
+        assert printable_ratio("hi \U0001f389".encode("utf-8")) < 1.0
+
+    def test_invalid_utf8_falls_back_to_bytes(self):
+        """Undecodable bytes fall back to a per-byte printable count."""
+        assert printable_ratio(b"AB\xff\xfe") == 0.5
+        assert printable_ratio(b"\xff\xfe\xfd") == 0.0
+
 
 class TestCombinedScore:
     """Tests for combined_score (printable + English detection)."""
@@ -83,6 +103,22 @@ class TestCombinedScore:
     def test_empty_bytes(self):
         """Empty bytes returns 0.0."""
         assert combined_score(b"") == 0.0
+
+    def test_typography_not_penalised_below_one(self, common_words):
+        """Prose with an en dash scores like English, not like binary."""
+        prose = (
+            "The man was here and the men were there, so the man went home. "
+            "\u2013M"
+        )
+        assert combined_score(prose.encode("utf-8"), common_words) > 1.5
+
+    def test_typography_scores_close_to_ascii_equivalent(self, common_words):
+        """Curly quotes score about the same as their ASCII counterparts."""
+        curly = "He said \u201cthe man was here\u201d and then went home."
+        plain = 'He said "the man was here" and then went home.'
+        curly_score = combined_score(curly.encode("utf-8"), common_words)
+        plain_score = combined_score(plain.encode("utf-8"), common_words)
+        assert abs(curly_score - plain_score) < 0.05
 
 
 class TestTypeDetection:

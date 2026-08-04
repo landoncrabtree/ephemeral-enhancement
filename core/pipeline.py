@@ -31,6 +31,7 @@ _CLASSICAL_STAGES = {
     "caesar",
     "bifid",
     "columnar",
+    "decimal",
     "double_columnar",
     "b64",
     "hex",
@@ -141,7 +142,7 @@ def axes_for_pipeline(
             iv_mult = N_IV_STRATEGIES if info.needs_iv else 1
             size = k * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES * iv_mult
             axes.append(StageAxis(st, size))
-        elif st in ("b64", "hex", "reverse", "trithemius", "trithemius52"):
+        elif st in ("b64", "hex", "decimal", "reverse", "trithemius", "trithemius52"):
             continue
     return axes
 

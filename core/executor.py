@@ -55,6 +55,7 @@ from stages.railfence import (
 )
 from stages.reverse import reverse_text
 from stages.scytale import scytale_decrypt
+from stages.decimal_encoding import decimal_decode
 from stages.xor import repeating_xor
 
 from .utils import N_CASE_VARIANTS, apply_case_variant
@@ -180,6 +181,9 @@ class StageExecutor:
         elif stage == "hex":
             return self._execute_hex(payload, kind, axis_pos)
 
+        elif stage == "decimal":
+            return self._execute_decimal(payload, kind, axis_pos, meta)
+
         elif stage == "affine":
             return self._execute_affine(payload, kind, param_idxs, axis_pos, meta)
 
@@ -240,8 +244,11 @@ class StageExecutor:
             return None
 
         try:
+            # Surrounding whitespace survives upstream stages (e.g. a decimal
+            # decode ending in CRLF, then reversed), so trim before padding.
+            text = payload.strip()  # type: ignore[union-attr]
             # Pad to multiple of 4 if needed (some sources omit trailing '=')
-            padded = payload + "=" * ((4 - len(payload) % 4) % 4)  # type: ignore[operator]
+            padded = text + "=" * ((4 - len(text) % 4) % 4)
             decoded = base64.b64decode(padded, validate=False)
         except Exception:
             return None
@@ -249,7 +256,7 @@ class StageExecutor:
         # If fully printable, try to decode as text
         if printable_ratio(decoded) == 1.0:
             try:
-                return (decoded.decode("ascii"), "text", axis_pos)
+                return (decoded.decode("utf-8"), "text", axis_pos)
             except (UnicodeDecodeError, AttributeError):
                 return (decoded, "bytes", axis_pos)
         else:
@@ -273,7 +280,32 @@ class StageExecutor:
 
         if printable_ratio(decoded) == 1.0:
             try:
-                return (decoded.decode("ascii"), "text", axis_pos)
+                return (decoded.decode("utf-8"), "text", axis_pos)
+            except (UnicodeDecodeError, AttributeError):
+                return (decoded, "bytes", axis_pos)
+        else:
+            return (decoded, "bytes", axis_pos)
+
+    def _execute_decimal(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute decimal character-code decode stage (e.g. '072 105' → b'Hi')."""
+        if kind != "text":
+            return None
+
+        decoded = decimal_decode(payload)  # type: ignore[arg-type]
+        if decoded is None:
+            return None
+
+        meta["decimal_applied"] = True
+
+        if printable_ratio(decoded) == 1.0:
+            try:
+                return (decoded.decode("utf-8"), "text", axis_pos)
             except (UnicodeDecodeError, AttributeError):
                 return (decoded, "bytes", axis_pos)
         else:
@@ -520,7 +552,7 @@ class StageExecutor:
         # If fully printable, try to decode as text
         if printable_ratio(xor_result) == 1.0:
             try:
-                return (xor_result.decode("ascii"), "text", axis_pos + 1)
+                return (xor_result.decode("utf-8"), "text", axis_pos + 1)
             except (UnicodeDecodeError, AttributeError):
                 return (xor_result, "bytes", axis_pos + 1)
         else:
@@ -739,7 +771,7 @@ class StageExecutor:
         # If fully printable, try to decode as text
         if printable_ratio(result) == 1.0:
             try:
-                return (result.decode("ascii"), "text", axis_pos + 1)
+                return (result.decode("utf-8"), "text", axis_pos + 1)
             except (UnicodeDecodeError, AttributeError):
                 pass
         return (result, "bytes", axis_pos + 1)
