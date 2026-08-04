@@ -24,6 +24,11 @@ from __future__ import annotations
 N_POLYALPHA_MODES = 2
 POLYALPHA_MODE_NAMES = ("normal", "autokey")
 
+# Alphabet modes. Index 0 is the 26-char alphabet so that alphabet 0 + mode 0
+# (normal) still occupies the start of the search space.
+N_POLYALPHA_ALPHABETS = 2
+POLYALPHA_ALPHABET_NAMES = ("alpha26", "alpha52")
+
 # ---------------------------------------------------------------------------
 # 52-char alphabet helpers
 # ---------------------------------------------------------------------------

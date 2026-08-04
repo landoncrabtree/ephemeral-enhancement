@@ -77,7 +77,9 @@ Every cipher stage touches exactly 3 files (see `docs/CONTRIBUTING/ADDING_A_STAG
 
 ### Polyalphabetic Ciphers (Vigenere, Beaufort, Porta)
 
-Each has two alphabet modes (26-char case-preserving, 52-char case-sensitive) exposed as separate stage names (`vigenere` vs `vigenere52`). Each also tries normal + autokey key-stream modes (2×) as part of the same axis. Constants `N_POLYALPHA_MODES` and `POLYALPHA_MODE_NAMES` are defined in `stages/polyalpha.py`.
+Each has two alphabet modes (26-char case-preserving, 52-char case-sensitive). The bare stage name (`vigenere`) sweeps **both** alphabets as part of its axis; the `26`/`52` suffixed names (`vigenere26`, `vigenere52`) pin one alphabet and halve the search space. Each also tries normal + autokey key-stream modes (2×) as part of the same axis. Constants `N_POLYALPHA_MODES`, `POLYALPHA_MODE_NAMES`, `N_POLYALPHA_ALPHABETS` and `POLYALPHA_ALPHABET_NAMES` are defined in `stages/polyalpha.py`.
+
+The flat axis index packs three components, coarsest first: `(alphabet * N_POLYALPHA_MODES + mode) * n_keys + key_idx`. This keeps alphabet 0 (26-char) + mode 0 (normal) at indices `0..k-1`, so pinned variants encode identically to the pre-merge behaviour. `core/executor.py:_split_alphabet_suffix()` maps a stage name to `(base_name, pinned_alphabet_or_None)`.
 
 Non-alpha characters always pass through unchanged and do not advance the key position — this preserves base64 structure for downstream `b64` stages.
 

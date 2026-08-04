@@ -39,6 +39,7 @@ from stages.mcrypt_wrapper import McryptHandleCache
 from stages.myszkowski import myszkowski_decrypt
 from stages.polyalpha import (
     N_POLYALPHA_MODES,
+    POLYALPHA_ALPHABET_NAMES,
     POLYALPHA_MODE_NAMES,
     autokey_decrypt,
     beaufort_autokey_decrypt,
@@ -76,6 +77,21 @@ def _nearest_valid_key_size(key_len: int, info: "McryptStageInfo") -> int:
         if size >= key_len:
             return size
     return info.max_key_size
+
+
+def _split_alphabet_suffix(stage: str) -> tuple[str, int | None]:
+    """
+    Split a polyalphabetic stage name into (base_name, pinned_alphabet_index).
+
+    ``"beaufort52"`` -> ``("beaufort", 1)``, ``"beaufort26"`` -> ``("beaufort", 0)``
+    and the bare ``"beaufort"`` -> ``("beaufort", None)``, meaning the alphabet
+    is swept as part of the stage's axis rather than pinned.
+    """
+    if stage.endswith("52"):
+        return stage[:-2], 1
+    if stage.endswith("26"):
+        return stage[:-2], 0
+    return stage, None
 
 
 def _plaintext_preview(data: bytes) -> str:
@@ -214,14 +230,15 @@ class StageExecutor:
             return self._execute_xor(payload, kind, param_idxs, axis_pos, meta)
 
         elif stage in ("vigenere", "beaufort", "porta",
+                      "vigenere26", "beaufort26", "porta26",
                       "vigenere52", "beaufort52", "porta52"):
             return self._execute_polyalpha(
                 stage, payload, kind, param_idxs, axis_pos, meta
             )
 
-        elif stage in ("trithemius", "trithemius52"):
+        elif stage in ("trithemius", "trithemius26", "trithemius52"):
             return self._execute_trithemius(
-                stage, payload, kind, meta, axis_pos
+                stage, payload, kind, param_idxs, axis_pos, meta
             )
 
         elif stage == "reverse":
@@ -562,18 +579,12 @@ class StageExecutor:
         "vigenere": vigenere_decrypt,
         "beaufort": beaufort_decrypt,
         "porta": porta_decrypt,
-        "vigenere52": vigenere_decrypt,
-        "beaufort52": beaufort_decrypt,
-        "porta52": porta_decrypt,
     }
 
     _POLYALPHA_AUTOKEY_FNS = {
         "vigenere": autokey_decrypt,
         "beaufort": beaufort_autokey_decrypt,
         "porta": porta_autokey_decrypt,
-        "vigenere52": autokey_decrypt,
-        "beaufort52": beaufort_autokey_decrypt,
-        "porta52": porta_autokey_decrypt,
     }
 
     def _execute_polyalpha(
@@ -589,20 +600,27 @@ class StageExecutor:
         if kind != "text":
             return None
 
+        base_name, pinned = _split_alphabet_suffix(stage)
+
         combined = param_idxs[axis_pos]
         n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
-        mode = combined // n_eff
         ki_combined = combined % n_eff
+        rest = combined // n_eff
+        mode = rest % N_POLYALPHA_MODES
+        # Base stage names sweep both alphabets as the high-order component;
+        # the 26/52 variants pin one and contribute no alphabet axis.
+        alpha_idx = pinned if pinned is not None else rest // N_POLYALPHA_MODES
+
         key = self._get_effective_key(ki_combined)
-        base_name = stage.removesuffix("52")
         meta[f"{base_name}_key"] = key
         meta[f"{base_name}_mode"] = POLYALPHA_MODE_NAMES[mode]
-        alpha52 = stage.endswith("52")
+        meta[f"{base_name}_alphabet"] = POLYALPHA_ALPHABET_NAMES[alpha_idx]
+        alpha52 = alpha_idx == 1
 
         if mode == 0:
-            fn = self._POLYALPHA_NORMAL_FNS[stage]
+            fn = self._POLYALPHA_NORMAL_FNS[base_name]
         else:
-            fn = self._POLYALPHA_AUTOKEY_FNS[stage]
+            fn = self._POLYALPHA_AUTOKEY_FNS[base_name]
         result = fn(payload, key, alpha52=alpha52)  # type: ignore[arg-type]
         if result is None:
             return None
@@ -613,16 +631,26 @@ class StageExecutor:
         stage: str,
         payload: str | bytes,
         kind: Kind,
-        meta: Dict[str, Any],
+        param_idxs: list[int],
         axis_pos: int,
+        meta: Dict[str, Any],
     ) -> tuple[str | bytes, Kind, int] | None:
-        """Execute Trithemius cipher stage (keyless)."""
+        """Execute Trithemius cipher stage (keyless, but alphabet-aware)."""
         if kind != "text":
             return None
-        alpha52 = stage.endswith("52")
+
+        _, pinned = _split_alphabet_suffix(stage)
+        if pinned is None:
+            alpha_idx = param_idxs[axis_pos]
+            consumed = 1
+        else:
+            alpha_idx = pinned
+            consumed = 0
+
         meta["trithemius_applied"] = True
-        result = trithemius_decrypt(payload, alpha52=alpha52)  # type: ignore[arg-type]
-        return (result, kind, axis_pos)
+        meta["trithemius_alphabet"] = POLYALPHA_ALPHABET_NAMES[alpha_idx]
+        result = trithemius_decrypt(payload, alpha52=alpha_idx == 1)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + consumed)
 
     def _execute_reverse(
         self,

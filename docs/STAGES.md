@@ -52,15 +52,20 @@ Only multipliers coprime with the modulus are valid.
 
 | Property | Value |
 |----------|-------|
-| Stage names | `vigenere`, `vigenere52` |
+| Stage names | `vigenere`, `vigenere26`, `vigenere52` |
 | Reference | **CrypTool-online** |
 | Formula | P = (C − K) mod N |
-| Parameters | Key × mode (normal/autokey) |
-| Search space | keys × 2 |
+| Parameters | Key × mode (normal/autokey) × alphabet |
+| Search space | keys × 2 × 2 (bare name), keys × 2 (pinned) |
 
 **Alphabet modes:**
-- `vigenere` — 26-char, case-insensitive A-Z with case preservation
-- `vigenere52` — 52-char, case-sensitive (A-Z then a-z, Z+1 wraps to a)
+- `vigenere` — sweeps **both** alphabets as part of its axis
+- `vigenere26` — 26-char only, case-insensitive A-Z with case preservation
+- `vigenere52` — 52-char only, case-sensitive (A-Z then a-z, Z+1 wraps to a)
+
+The bare stage name tries both alphabets so you don't have to run two
+pipelines; use the `26`/`52` variants to pin one and halve the search space.
+The chosen alphabet is reported in results as `<cipher>_alphabet`.
 
 **Key-stream modes (2):**
 - **Normal** — Key repeats cyclically
@@ -74,11 +79,11 @@ Non-alpha characters pass through unchanged and do not advance the key position.
 
 | Property | Value |
 |----------|-------|
-| Stage names | `beaufort`, `beaufort52` |
+| Stage names | `beaufort`, `beaufort26`, `beaufort52` |
 | Reference | **CrypTool-online** |
 | Formula | P = (K − C) mod N |
-| Parameters | Key × mode (normal/autokey) |
-| Search space | keys × 2 |
+| Parameters | Key × mode (normal/autokey) × alphabet |
+| Search space | keys × 2 × 2 (bare name), keys × 2 (pinned) |
 
 Self-reciprocal in normal mode (encrypt = decrypt). Autokey mode breaks self-reciprocity.
 
@@ -90,11 +95,11 @@ Same alphabet and key-stream modes as Vigenere.
 
 | Property | Value |
 |----------|-------|
-| Stage names | `porta`, `porta52` |
+| Stage names | `porta`, `porta26`, `porta52` |
 | Reference | **CrypTool-online** |
 | Formula | Paired half-alphabet substitution with key-driven rotation |
-| Parameters | Key × mode (normal/autokey) |
-| Search space | keys × 2 |
+| Parameters | Key × mode (normal/autokey) × alphabet |
+| Search space | keys × 2 × 2 (bare name), keys × 2 (pinned) |
 
 Self-reciprocal in normal mode. Key values are reduced by `// 2` (pair indices). Autokey extends key with raw plaintext values (reduced when applied).
 
@@ -106,13 +111,15 @@ Same alphabet and key-stream modes as Vigenere.
 
 | Property | Value |
 |----------|-------|
-| Stage names | `trithemius`, `trithemius52` |
+| Stage names | `trithemius`, `trithemius26`, `trithemius52` |
 | Reference | **CrypTool-online** |
 | Formula | P = (C − position) mod N |
-| Parameters | None (keyless) |
-| Search space | 0 (no axis) |
+| Parameters | Alphabet only (no key) |
+| Search space | 2 (bare name), 0 (pinned — no axis) |
 
-Shift equals character position (0, 1, 2, ...). No key required.
+Shift equals character position (0, 1, 2, ...). No key required. The bare
+`trithemius` still sweeps both alphabets, so it contributes an axis of 2;
+`trithemius26`/`trithemius52` are fully keyless and contribute no axis.
 
 ---
 

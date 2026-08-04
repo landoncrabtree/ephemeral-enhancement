@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from stages.key_derivation import N_KEY_DERIVATION_MODES
 from stages.columnar import N_COLUMNAR_CHARSET_MODES
 from stages.railfence import N_RAILFENCE_CHARSET_MODES
-from stages.polyalpha import N_POLYALPHA_MODES
+from stages.polyalpha import N_POLYALPHA_ALPHABETS, N_POLYALPHA_MODES
 from stages.mcrypt_registry import (
     N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
@@ -27,6 +27,7 @@ from .utils import N_CASE_VARIANTS
 _CLASSICAL_STAGES = {
     "affine",
     "beaufort",
+    "beaufort26",
     "beaufort52",
     "caesar",
     "bifid",
@@ -37,11 +38,14 @@ _CLASSICAL_STAGES = {
     "hex",
     "myszkowski",
     "porta",
+    "porta26",
     "porta52",
     "redefense",
     "trithemius",
+    "trithemius26",
     "trithemius52",
     "vigenere",
+    "vigenere26",
     "vigenere52",
     "xor",
     "railfence",
@@ -126,9 +130,17 @@ def axes_for_pipeline(
             axes.append(StageAxis("scytale", 99))  # 2-100 columns
         elif st in ("bifid", "myszkowski", "xor"):
             axes.append(StageAxis(st, k))
-        elif st in ("vigenere", "beaufort", "porta",
+        elif st in ("vigenere", "beaufort", "porta"):
+            # Base name sweeps both alphabets; the 26/52 variants pin one.
+            axes.append(
+                StageAxis(st, k * N_POLYALPHA_MODES * N_POLYALPHA_ALPHABETS)
+            )
+        elif st in ("vigenere26", "beaufort26", "porta26",
                     "vigenere52", "beaufort52", "porta52"):
             axes.append(StageAxis(st, k * N_POLYALPHA_MODES))
+        elif st == "trithemius":
+            # Keyless, but still sweeps both alphabets.
+            axes.append(StageAxis(st, N_POLYALPHA_ALPHABETS))
         elif st == "redefense":
             axes.append(StageAxis("redefense", k * N_RAILFENCE_CHARSET_MODES))
         elif st == "columnar":
@@ -142,7 +154,7 @@ def axes_for_pipeline(
             iv_mult = N_IV_STRATEGIES if info.needs_iv else 1
             size = k * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES * iv_mult
             axes.append(StageAxis(st, size))
-        elif st in ("b64", "hex", "decimal", "reverse", "trithemius", "trithemius52"):
+        elif st in ("b64", "hex", "decimal", "reverse", "trithemius26", "trithemius52"):
             continue
     return axes
 
