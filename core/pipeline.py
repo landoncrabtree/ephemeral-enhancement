@@ -27,12 +27,22 @@ from .utils import N_CASE_VARIANTS
 # Classical cipher stages (non-mcrypt)
 _CLASSICAL_STAGES = {
     "affine",
+    "atbash",
+    "atbash26",
+    "atbash52",
+    "atbash62",
+    "atbash64",
     "beaufort",
     "beaufort26",
     "beaufort62",
     "beaufort64",
     "beaufort52",
     "caesar",
+    "keyword",
+    "keyword26",
+    "keyword52",
+    "keyword62",
+    "keyword64",
     "bifid",
     "columnar",
     "decimal",
@@ -152,9 +162,13 @@ def axes_for_pipeline(
                     "vigenere62", "beaufort62", "porta62",
                     "vigenere64", "beaufort64", "porta64"):
             axes.append(StageAxis(st, k * N_POLYALPHA_MODES))
-        elif st == "trithemius":
-            # Keyless, but still sweeps both alphabets.
+        elif st in ("trithemius", "atbash"):
+            # Keyless, but still sweeps every alphabet.
             axes.append(StageAxis(st, N_POLYALPHA_ALPHABETS))
+        elif st == "keyword":
+            axes.append(StageAxis(st, k * N_POLYALPHA_ALPHABETS))
+        elif st in ("keyword26", "keyword52", "keyword62", "keyword64"):
+            axes.append(StageAxis(st, k))
         elif st == "redefense":
             axes.append(StageAxis("redefense", k * N_RAILFENCE_CHARSET_MODES))
         elif st == "columnar":
@@ -170,7 +184,8 @@ def axes_for_pipeline(
             axes.append(StageAxis(st, size))
         elif st in ("b64", "hex", "decimal", "reverse",
                     "trithemius26", "trithemius52",
-                    "trithemius62", "trithemius64"):
+                    "trithemius62", "trithemius64",
+                    "atbash26", "atbash52", "atbash62", "atbash64"):
             continue
     return axes
 

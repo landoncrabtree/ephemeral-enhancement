@@ -83,7 +83,7 @@ _FIXED_ALPHABETS: dict[int, tuple[str, dict[str, int], int]] = {
 }
 
 
-def _resolve_alphabet(
+def resolve_alphabet(
     alpha52: bool, alphabet: int | None
 ) -> tuple[str, dict[str, int], int] | None:
     """
@@ -96,6 +96,10 @@ def _resolve_alphabet(
     if alphabet is None:
         alphabet = ALPHABET_52 if alpha52 else ALPHABET_26
     return _FIXED_ALPHABETS.get(alphabet)
+
+
+# Backwards-compatible private alias.
+_resolve_alphabet = resolve_alphabet
 
 # ---------------------------------------------------------------------------
 # 26-char alphabet helpers
@@ -144,7 +148,7 @@ def vigenere_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
         alpha52: If True, use 52-char case-sensitive alphabet.
     Returns None if key has no alpha characters.
     """
-    _tbl = _resolve_alphabet(alpha52, alphabet)
+    _tbl = resolve_alphabet(alpha52, alphabet)
     if _tbl is not None:
         _A, _O, _M = _tbl
         kv = [_O[c] for c in key if c in _O]
@@ -191,7 +195,7 @@ def beaufort_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
     Beaufort is self-reciprocal (encrypt == decrypt).
     Returns None if key has no alpha characters.
     """
-    _tbl = _resolve_alphabet(alpha52, alphabet)
+    _tbl = resolve_alphabet(alpha52, alphabet)
     if _tbl is not None:
         _A, _O, _M = _tbl
         kv = [_O[c] for c in key if c in _O]
@@ -237,7 +241,7 @@ def autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
 
     Returns None if key has no alpha characters.
     """
-    _tbl = _resolve_alphabet(alpha52, alphabet)
+    _tbl = resolve_alphabet(alpha52, alphabet)
     if _tbl is not None:
         _A, _O, _M = _tbl
         kv = [_O[c] for c in key if c in _O]
@@ -282,7 +286,7 @@ def beaufort_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False
 
     Returns None if key has no alpha characters.
     """
-    _tbl = _resolve_alphabet(alpha52, alphabet)
+    _tbl = resolve_alphabet(alpha52, alphabet)
     if _tbl is not None:
         _A, _O, _M = _tbl
         kv = [_O[c] for c in key if c in _O]
@@ -330,7 +334,7 @@ def porta_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
 
     Returns None if key has no alpha characters.
     """
-    _tbl = _resolve_alphabet(alpha52, alphabet)
+    _tbl = resolve_alphabet(alpha52, alphabet)
     if _tbl is not None:
         _A, _O, _M = _tbl
         kv = [_O[c] for c in key if c in _O]
@@ -393,7 +397,7 @@ def porta_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
 
     Returns None if key has no alpha characters.
     """
-    _tbl = _resolve_alphabet(alpha52, alphabet)
+    _tbl = resolve_alphabet(alpha52, alphabet)
     if _tbl is not None:
         _A, _O, _M = _tbl
         kv = [_O[c] for c in key if c in _O]
@@ -451,7 +455,7 @@ def trithemius_decrypt(ciphertext: str, *, alpha52: bool = False,
     Position increments for each alpha character; non-alpha passes through.
     Keyless cipher — no dictionary key needed.
     """
-    _tbl = _resolve_alphabet(alpha52, alphabet)
+    _tbl = resolve_alphabet(alpha52, alphabet)
     if _tbl is not None:
         _A, _O, _M = _tbl
         out: list[str] = []

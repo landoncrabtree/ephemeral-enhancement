@@ -59,6 +59,7 @@ from stages.railfence import (
     redefense_decrypt,
 )
 from stages.charsets import N_CHARSET_MODES, charset_name
+from stages.substitution import atbash_decrypt, keyword_decrypt
 from stages.reverse import reverse_text
 from stages.scytale import scytale_decrypt
 from stages.decimal_encoding import decimal_decode
@@ -253,6 +254,14 @@ class StageExecutor:
             return self._execute_polyalpha(
                 stage, payload, kind, param_idxs, axis_pos, meta
             )
+
+        elif stage in ("atbash", "atbash26", "atbash52",
+                       "atbash62", "atbash64"):
+            return self._execute_atbash(stage, payload, kind, param_idxs, axis_pos, meta)
+
+        elif stage in ("keyword", "keyword26", "keyword52",
+                       "keyword62", "keyword64"):
+            return self._execute_keyword(stage, payload, kind, param_idxs, axis_pos, meta)
 
         elif stage in ("trithemius", "trithemius26", "trithemius52",
                        "trithemius62", "trithemius64"):
@@ -671,6 +680,60 @@ class StageExecutor:
         else:
             fn = self._POLYALPHA_AUTOKEY_FNS[base_name]
         result = fn(payload, key, alphabet=alpha_idx)  # type: ignore[arg-type]
+        if result is None:
+            return None
+        return (result, kind, axis_pos + 1)
+
+    def _execute_atbash(
+        self,
+        stage: str,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Atbash stage (keyless, but alphabet-aware)."""
+        if kind != "text":
+            return None
+
+        _, pinned = _split_alphabet_suffix(stage)
+        if pinned is None:
+            alpha_idx = param_idxs[axis_pos]
+            consumed = 1
+        else:
+            alpha_idx, consumed = pinned, 0
+
+        meta["atbash_alphabet"] = POLYALPHA_ALPHABET_NAMES[alpha_idx]
+        result = atbash_decrypt(payload, alphabet=alpha_idx)  # type: ignore[arg-type]
+        if result is None:
+            return None
+        return (result, kind, axis_pos + consumed)
+
+    def _execute_keyword(
+        self,
+        stage: str,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute keyword (keyed monoalphabetic) substitution stage."""
+        if kind != "text":
+            return None
+
+        base_name, pinned = _split_alphabet_suffix(stage)
+        combined = param_idxs[axis_pos]
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        ki_combined = combined % n_eff
+        # Alphabet is the high-order component when it is not pinned.
+        alpha_idx = pinned if pinned is not None else combined // n_eff
+
+        key = self._get_effective_key(ki_combined)
+        meta["keyword_key"] = key
+        meta["keyword_alphabet"] = POLYALPHA_ALPHABET_NAMES[alpha_idx]
+        result = keyword_decrypt(payload, key, alphabet=alpha_idx)  # type: ignore[arg-type]
         if result is None:
             return None
         return (result, kind, axis_pos + 1)
