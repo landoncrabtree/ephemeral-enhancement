@@ -59,6 +59,8 @@ from stages.railfence import (
     redefense_decrypt,
 )
 from stages.charsets import N_CHARSET_MODES, charset_name
+from stages.amsco import N_AMSCO_PATTERNS, AMSCO_PATTERN_NAMES, amsco_decrypt
+from stages.skip import MAX_BYPASS, MIN_SKIP, N_SKIP_VALUES, skip_decrypt
 from stages.substitution import atbash_decrypt, keyword_decrypt
 from stages.reverse import reverse_text
 from stages.scytale import scytale_decrypt
@@ -272,6 +274,12 @@ class StageExecutor:
         elif stage == "reverse":
             return self._execute_reverse(payload, kind, meta, axis_pos)
 
+        elif stage == "skip":
+            return self._execute_skip(payload, kind, param_idxs, axis_pos, meta)
+
+        elif stage == "amsco":
+            return self._execute_amsco(payload, kind, param_idxs, axis_pos, meta)
+
         elif stage == "scytale":
             return self._execute_scytale(payload, kind, param_idxs, axis_pos, meta)
 
@@ -453,6 +461,57 @@ class StageExecutor:
         meta["scytale_cols"] = n_cols
         meta["scytale_charset"] = charset_name(charset_mode)
         result = scytale_decrypt(payload, n_cols, charset_mode)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + 1)
+
+    def _execute_skip(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Skip (decimation) transposition stage."""
+        if kind != "text":
+            return None
+
+        combined = param_idxs[axis_pos]
+        skip_idx = combined % N_SKIP_VALUES
+        rest = combined // N_SKIP_VALUES
+        bypass = rest % MAX_BYPASS
+        charset_mode = rest // MAX_BYPASS
+
+        skip = skip_idx + MIN_SKIP
+        meta["skip_step"] = skip
+        meta["skip_bypass"] = bypass
+        meta["skip_charset"] = charset_name(charset_mode)
+        result = skip_decrypt(payload, skip, bypass, charset_mode)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + 1)
+
+    def _execute_amsco(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute AMSCO transposition stage."""
+        if kind != "text":
+            return None
+
+        combined = param_idxs[axis_pos]
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        ki_combined = combined % n_eff
+        rest = combined // n_eff
+        pattern = rest % N_AMSCO_PATTERNS
+        charset_mode = rest // N_AMSCO_PATTERNS
+
+        key = self._get_effective_key(ki_combined)
+        meta["amsco_key"] = key
+        meta["amsco_pattern"] = AMSCO_PATTERN_NAMES[pattern]
+        meta["amsco_charset"] = charset_name(charset_mode)
+        result = amsco_decrypt(payload, key, pattern == 1, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_bifid(

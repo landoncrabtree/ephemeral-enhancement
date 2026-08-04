@@ -10,7 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stages.key_derivation import N_KEY_DERIVATION_MODES
+from stages.amsco import N_AMSCO_PATTERNS
 from stages.charsets import N_CHARSET_MODES
+from stages.skip import MAX_BYPASS, N_SKIP_VALUES
 from stages.columnar import N_COLUMNAR_CHARSET_MODES
 from stages.railfence import N_RAILFENCE_CHARSET_MODES
 from stages.polyalpha import N_POLYALPHA_ALPHABETS, N_POLYALPHA_MODES
@@ -27,6 +29,7 @@ from .utils import N_CASE_VARIANTS
 # Classical cipher stages (non-mcrypt)
 _CLASSICAL_STAGES = {
     "affine",
+    "amsco",
     "atbash",
     "atbash26",
     "atbash52",
@@ -70,6 +73,7 @@ _CLASSICAL_STAGES = {
     "railfence",
     "reverse",
     "scytale",
+    "skip",
 }
 
 # Valid stages = classical + all mcrypt stages (including aliases)
@@ -148,6 +152,16 @@ def axes_for_pipeline(
         elif st == "scytale":
             # 2-100 columns × charset modes
             axes.append(StageAxis("scytale", 99 * N_CHARSET_MODES))
+        elif st == "skip":
+            # skip values x bypass offsets x charset modes
+            axes.append(
+                StageAxis("skip", N_SKIP_VALUES * MAX_BYPASS * N_CHARSET_MODES)
+            )
+        elif st == "amsco":
+            # keys x chunk patterns (1-2 / 2-1) x charset modes
+            axes.append(
+                StageAxis("amsco", k * N_AMSCO_PATTERNS * N_CHARSET_MODES)
+            )
         elif st == "myszkowski":
             axes.append(StageAxis("myszkowski", k * N_CHARSET_MODES))
         elif st in ("bifid", "xor"):
