@@ -173,10 +173,34 @@ def dashboard(
     q: str | None = Query(default=None),
     ct: str | None = Query(default=None),
     only_hits: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=10, le=200),
 ) -> HTMLResponse:
-    runs = db.list_runs(ciphertext_sha=ct, only_hits=only_hits, search=q)
+    total = db.count_runs(ciphertext_sha=ct, only_hits=only_hits, search=q)
+    pages = max(1, -(-total // per_page))
+    page = min(page, pages)
+    runs = db.list_runs(
+        limit=per_page,
+        offset=(page - 1) * per_page,
+        ciphertext_sha=ct,
+        only_hits=only_hits,
+        search=q,
+    )
     for r in runs:
         r["axes"] = db.decode_axes(r.get("axes_json"))
+
+    # Preserve active filters across page links.
+    params = []
+    if q:
+        params.append(f"q={q}")
+    if ct:
+        params.append(f"ct={ct}")
+    if only_hits:
+        params.append("only_hits=true")
+    if per_page != 50:
+        params.append(f"per_page={per_page}")
+    base_query = ("&" + "&".join(params)) if params else ""
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -188,6 +212,10 @@ def dashboard(
             "ct": ct or "",
             "only_hits": only_hits,
             "version": api_version(),
+            "page": page,
+            "pages": pages,
+            "total": total,
+            "base_query": base_query,
         },
     )
 

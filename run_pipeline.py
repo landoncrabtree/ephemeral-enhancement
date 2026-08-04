@@ -141,16 +141,19 @@ def main() -> None:
     )
 
     results = executor.execute(total_combinations)
+
+    # display_results pops "preview" out of each meta dict, so capture the best
+    # hit's plaintext before rendering or it never reaches the tracker.
+    best_score, best_meta = results.hits[0] if results.hits else (None, None)
+    best_plaintext = None
+    if best_meta:
+        best_meta = dict(best_meta)
+        best_plaintext = best_meta.pop("preview", None)
+
     display_results(results, config.max_hits)
 
     # --- tracker: record what was covered ---
     if tracker is not None and tracker.enabled and fingerprint:
-        best_score, best_meta = results.hits[0] if results.hits else (None, None)
-        best_plaintext = None
-        if best_meta:
-            best_meta = dict(best_meta)
-            best_plaintext = best_meta.pop("preview", None)
-
         ok = tracker.submit({
             "fingerprint": fingerprint,
             "pipeline": config.pipeline,

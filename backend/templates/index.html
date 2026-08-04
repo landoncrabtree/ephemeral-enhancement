@@ -31,12 +31,12 @@
 <section>
   <h2>Targets</h2>
   <table>
-    <thead><tr><th>Label</th><th>Ciphertext</th><th class="r">Runs</th><th class="r">Combos</th><th class="r">Hits</th><th class="r">Best</th></tr></thead>
+    <thead><tr><th>Ciphertext</th><th class="r">Len</th><th class="r">Runs</th><th class="r">Combos</th><th class="r">Hits</th><th class="r">Best</th></tr></thead>
     <tbody>
     {% for t in targets %}
       <tr>
-        <td>{{ t.label or "—" }}</td>
-        <td><a href="/?ct={{ t.ciphertext_sha }}"><code>{{ t.ciphertext_sha[:12] }}</code></a></td>
+        <td><a href="/?ct={{ t.ciphertext_sha }}" title="{{ t.ciphertext }}"><code>{{ t.ciphertext[:34] }}{% if t.ct_len > 34 %}…{% endif %}</code></a></td>
+        <td class="r dim">{{ t.ct_len }}</td>
         <td class="r">{{ "{:,}".format(t.runs) }}</td>
         <td class="r">{{ "{:,}".format(t.combos) }}</td>
         <td class="r">{% if t.hits %}<b class="hit">{{ t.hits }}</b>{% else %}0{% endif %}</td>
@@ -49,7 +49,7 @@
 {% endif %}
 
 <section>
-  <h2>Runs</h2>
+  <h2>Runs <span class="count">{{ "{:,}".format(total) }}</span></h2>
   <form method="get" class="filters">
     <input type="text" name="q" value="{{ q }}" placeholder="search pipeline / runner / label">
     {% if ct %}<input type="hidden" name="ct" value="{{ ct }}">{% endif %}
@@ -65,7 +65,7 @@
   <table>
     <thead>
       <tr>
-        <th>Pipeline</th><th>Target</th><th class="r">Combos</th>
+        <th>Pipeline</th><th>Ciphertext</th><th class="r">Combos</th>
         <th class="r">Hits</th><th class="r">Best</th><th class="r">Time</th>
         <th>Runner</th><th>When</th>
       </tr>
@@ -76,7 +76,7 @@
         <td><a href="/run/{{ r.fingerprint }}"><code>{{ r.pipeline }}</code></a>
             {% if r.status != 'complete' %}<span class="badge">{{ r.status }}</span>{% endif %}
             {% if r.vary_case %}<span class="badge alt">vary-case</span>{% endif %}</td>
-        <td><code>{{ r.ciphertext_label or r.ciphertext_sha[:10] }}</code></td>
+        <td><code class="ct-head" title="{{ r.ciphertext }}">{{ r.ciphertext[:22] }}{% if r.ciphertext|length > 22 %}…{% endif %}</code></td>
         <td class="r">{{ "{:,}".format(r.combos or 0) }}</td>
         <td class="r">{% if r.hits %}<b class="hit">{{ r.hits }}</b>{% else %}0{% endif %}</td>
         <td class="r">{{ "%.3f"|format(r.best_score) if r.best_score else "—" }}</td>
@@ -84,9 +84,32 @@
         <td>{{ r.runner or "—" }}</td>
         <td class="dim">{{ r.created_at }}</td>
       </tr>
+      {% if r.hits and r.best_plaintext %}
+      <tr class="plain-row">
+        <td colspan="8"><span class="plain">{{ r.best_plaintext[:240] }}</span></td>
+      </tr>
+      {% endif %}
     {% endfor %}
     </tbody>
   </table>
+
+  {% if pages > 1 %}
+  <nav class="pager">
+    {% if page > 1 %}
+      <a href="/?page=1{{ base_query }}">&laquo; first</a>
+      <a href="/?page={{ page - 1 }}{{ base_query }}">&lsaquo; prev</a>
+    {% else %}
+      <span class="off">&laquo; first</span><span class="off">&lsaquo; prev</span>
+    {% endif %}
+    <span class="pos">page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}
+      <a href="/?page={{ page + 1 }}{{ base_query }}">next &rsaquo;</a>
+      <a href="/?page={{ pages }}{{ base_query }}">last &raquo;</a>
+    {% else %}
+      <span class="off">next &rsaquo;</span><span class="off">last &raquo;</span>
+    {% endif %}
+  </nav>
+  {% endif %}
   {% endif %}
 </section>
 

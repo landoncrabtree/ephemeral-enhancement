@@ -132,8 +132,11 @@ def list_runs(
     if only_hits:
         clauses.append("hits > 0")
     if search:
-        clauses.append("(pipeline LIKE ? OR ciphertext_label LIKE ? OR runner LIKE ?)")
-        params += [f"%{search}%"] * 3
+        clauses.append(
+            "(pipeline LIKE ? OR ciphertext LIKE ? OR runner LIKE ? "
+            "OR best_plaintext LIKE ?)"
+        )
+        params += [f"%{search}%"] * 4
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     params += [limit, offset]
     with connect() as conn:
@@ -142,6 +145,32 @@ def list_runs(
             params,
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def count_runs(
+    ciphertext_sha: str | None = None,
+    only_hits: bool = False,
+    search: str | None = None,
+) -> int:
+    """Total rows matching the same filters as list_runs, for pagination."""
+    clauses: list[str] = []
+    params: list[Any] = []
+    if ciphertext_sha:
+        clauses.append("ciphertext_sha = ?")
+        params.append(ciphertext_sha)
+    if only_hits:
+        clauses.append("hits > 0")
+    if search:
+        clauses.append(
+            "(pipeline LIKE ? OR ciphertext LIKE ? OR runner LIKE ? "
+            "OR best_plaintext LIKE ?)"
+        )
+        params += [f"%{search}%"] * 4
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    with connect() as conn:
+        return conn.execute(
+            f"SELECT COUNT(*) FROM runs {where}", params
+        ).fetchone()[0]
 
 
 def stats() -> dict[str, Any]:
@@ -167,7 +196,8 @@ def ciphertext_summary() -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT ciphertext_sha,
-                   MAX(ciphertext_label)   AS label,
+                   MAX(ciphertext)         AS ciphertext,
+                   MAX(LENGTH(ciphertext)) AS ct_len,
                    COUNT(*)                AS runs,
                    COALESCE(SUM(combos),0) AS combos,
                    COALESCE(SUM(hits),0)   AS hits,

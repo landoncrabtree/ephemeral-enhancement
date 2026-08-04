@@ -1,5 +1,71 @@
 # Brute-Force Attempt Log
 
+> **Superseded — the tracker API is now the source of truth.**
+>
+> Live results: **https://ee.landon.pw**
+>
+> ```bash
+> python run_pipeline.py --join-network <token> --server https://ee.landon.pw
+> ```
+>
+> After joining, every run is recorded automatically and pipelines already
+> covered are skipped. Ask before running a long sweep — check the dashboard.
+
+## Why the table below was retired
+
+Two things invalidated every historical row:
+
+1. **The ciphertext changed.** The transcript was corrected at two ambiguous
+   glyph positions (31 and 36, `I` vs `l`), so older runs targeted a string
+   that differs from the real one.
+
+2. **The search spaces grew.** Stages gained parameters, so the same pipeline
+   name now covers far more combinations:
+
+   | Pipeline | old | now | |
+   |---|---|---|---|
+   | `beaufort>b64` | 24 | 120 | 5.0x |
+   | `scytale>b64` | 99 | 297 | 3.0x |
+   | `myszkowski>b64` | 12 | 36 | 3.0x |
+   | `railfence>b64` | 58 | 87 | 1.5x |
+   | `columnar>b64` | 24 | 36 | 1.5x |
+
+   A row reading "`beaufort>b64`, 0 hits" was therefore *not* evidence that
+   the pipeline is exhausted — 96 of its 120 combinations had never run.
+
+The tracker fixes this structurally: runs are keyed by a hash of the whole
+searched space (stages, per-stage axis sizes, ciphertext, dictionary, key
+count, `--vary-case`, semantics version), so when a stage gains parameters the
+fingerprint changes and the pipeline becomes runnable again automatically.
+
+## Stage consolidation
+
+Several stage names in the historical table no longer exist as separate
+entries, because they were folded into their base stage:
+
+- `autokey`, `autokey52` -> key-stream mode of `vigenere`
+- `beaufort52`, `porta52`, `vigenere52` -> alphabet mode of the base name
+  (the suffixed forms still work, and now pin one alphabet)
+
+The bare `beaufort` now sweeps normal + autokey across all five alphabets
+(alpha26, alpha52, b64, alnum62, all_printable).
+
+## Solved ciphers
+
+| Cipher | Pipeline | Key |
+|---|---|---|
+| rev1 | `beaufort>b64>rc2-ecb>reverse>b64>rijndael-256-ecb` | Beaufort `ZOMBIES` (52-char), rest `Zombies` |
+| rev9 | `b64>des-cfb>decimal>reverse>b64>twofish-cfb` | `Zombies`, IV = `"0"` repeated |
+| rev12 | `b64>xtea-cfb>reverse>caesar` | `Zombies`, IV = `"0"` repeated, shift 20 |
+
+All three use libmcrypt's 8-bit CFB and an IV of ASCII `0` (0x30) repeated to
+the block size — not null bytes.
+
+---
+
+<details>
+<summary>Historical log (stale ciphertext and axis sizes — kept for reference)</summary>
+
 Tracking all pipeline/dictionary/ciphertext combinations tested against the default ciphertext.
 
 **Default ciphertext:**
@@ -99,3 +165,5 @@ Words: `Zombie`, `Zombies`, `TheGiant`, `TryThis` (with --vary-case: lowercase, 
 - [ ] Try with full `dictionary.txt` (~thousands of words)
 - [ ] Try different pipeline structures (3+ classical stages before mcrypt)
 - [ X ] Try a known ciphertext with known answer to validate end-to-end
+
+</details>
