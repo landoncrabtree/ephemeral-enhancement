@@ -34,8 +34,7 @@ class PipelineConfig:
         dry_run: Only show parameter space size, don't run
         vary_case: Try lowercase, uppercase, title case for each wordlist key
         join_network: One-time join token to save to ~/.ee/config
-        server: Tracker server base URL (saved alongside the token)
-        runner: Label recorded against submitted runs
+        server: Tracker server URL, stored by --join-network
         no_track: Skip the tracker for this run
         force: Run even if the tracker reports this space as already searched
     """
@@ -54,7 +53,6 @@ class PipelineConfig:
     vary_case: bool
     join_network: str | None = None
     server: str | None = None
-    runner: str | None = None
     no_track: bool = False
     force: bool = False
 
@@ -185,13 +183,8 @@ Examples:
         "--server",
         type=str,
         default=None,
-        help="Tracker server base URL (stored with --join-network)",
-    )
-    net.add_argument(
-        "--runner",
-        type=str,
-        default=None,
-        help="Label recorded against your runs (defaults to user@hostname)",
+        help="Tracker server URL. Only used with --join-network, which stores "
+        "it; later runs read it from ~/.ee/config.",
     )
     net.add_argument(
         "--no-track",
@@ -221,6 +214,11 @@ def parse_args() -> PipelineConfig:
     # --pipeline is optional only so that --join-network can be used alone.
     if not args.join_network and not args.pipeline:
         parser.error("the following arguments are required: --pipeline")
+    if args.server and not args.join_network:
+        parser.error(
+            "--server is only used with --join-network; the URL you joined "
+            "with is stored in ~/.ee/config and reused automatically"
+        )
 
     return PipelineConfig(
         ciphertext=args.ciphertext,
@@ -237,7 +235,6 @@ def parse_args() -> PipelineConfig:
         vary_case=args.vary_case,
         join_network=args.join_network,
         server=args.server,
-        runner=args.runner,
         no_track=args.no_track,
         force=args.force,
     )

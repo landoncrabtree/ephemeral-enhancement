@@ -28,8 +28,8 @@ import hashlib
 import json
 import os
 import platform
-import socket
 import subprocess
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -54,7 +54,7 @@ SEMANTICS_VERSION = 3
 class TrackerConfig:
     token: str = ""
     server: str = DEFAULT_SERVER
-    runner: str = ""
+    runner: str = ""   # pseudonymous machine id, see machine_id()
 
     @property
     def enabled(self) -> bool:
@@ -89,7 +89,7 @@ def save_config(token: str, server: str | None = None, runner: str | None = None
     if runner:
         cfg.runner = runner
     if not cfg.runner:
-        cfg.runner = default_runner()
+        cfg.runner = machine_id()
 
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(
@@ -105,12 +105,54 @@ def save_config(token: str, server: str | None = None, runner: str | None = None
     return CONFIG_PATH
 
 
-def default_runner() -> str:
-    """A human-readable machine label, used to attribute runs."""
+def _raw_machine_id() -> str:
+    """
+    Best-effort stable hardware identifier for this machine.
+
+    Falls back through platform-specific sources to the NIC MAC address. The
+    raw value never leaves the machine — `machine_id()` hashes it.
+    """
+    system = platform.system()
     try:
-        return f"{os.getenv('USER') or 'anon'}@{socket.gethostname()}"
+        if system == "Darwin":
+            out = subprocess.run(
+                ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+                capture_output=True, text=True, timeout=5,
+            ).stdout
+            for line in out.splitlines():
+                if "IOPlatformUUID" in line:
+                    return line.split('"')[3]
+        elif system == "Linux":
+            for path in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+                candidate = Path(path)
+                if candidate.exists():
+                    value = candidate.read_text().strip()
+                    if value:
+                        return value
+        elif system == "Windows":
+            out = subprocess.run(
+                ["reg", "query",
+                 r"HKLM\SOFTWARE\Microsoft\Cryptography", "/v", "MachineGuid"],
+                capture_output=True, text=True, timeout=5,
+            ).stdout
+            for line in out.splitlines():
+                if "MachineGuid" in line:
+                    return line.split()[-1]
     except Exception:
-        return f"{platform.system()}-anon"
+        pass
+    # Universal fallback: the primary NIC's MAC address.
+    return f"mac-{uuid.getnode():012x}"
+
+
+def machine_id() -> str:
+    """
+    Pseudonymous, stable client identifier used to attribute runs.
+
+    The hardware ID is hashed, so the dashboard shows a consistent handle for
+    each machine without exposing a username, hostname, MAC or hardware UUID.
+    """
+    digest = hashlib.sha256(_raw_machine_id().encode()).hexdigest()[:12]
+    return f"ee-{digest}"
 
 
 # ---------------------------------------------------------------------------
@@ -154,17 +196,22 @@ def compute_fingerprint(
     ).hexdigest()
 
 
-def git_commit() -> str | None:
-    """Short commit of the working tree, so odd results stay traceable."""
+def _git(*args: str) -> subprocess.CompletedProcess[str] | None:
+    """Run a git command in the project root, or None if git is unavailable."""
     try:
-        out = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
+        return subprocess.run(
+            ["git", *args],
             cwd=Path(__file__).resolve().parent.parent,
-            capture_output=True, text=True, timeout=3,
+            capture_output=True, text=True, timeout=5,
         )
-        return out.stdout.strip() or None
     except Exception:
         return None
+
+
+def git_commit() -> str | None:
+    """Short commit of the working tree, so odd results stay traceable."""
+    out = _git("rev-parse", "--short", "HEAD")
+    return out.stdout.strip() if out and out.stdout.strip() else None
 
 
 # ---------------------------------------------------------------------------
@@ -174,12 +221,13 @@ def git_commit() -> str | None:
 class Tracker:
     """Thin, fail-open HTTP client for the tracker server."""
 
-    def __init__(
-        self, config: TrackerConfig | None = None, server: str | None = None
-    ):
+    def __init__(self, config: TrackerConfig | None = None):
         self.config = config or load_config()
-        if server:  # --server overrides the stored value for this run
-            self.config.server = server
+        # EE_SERVER is an escape hatch for testing; normal use relies on the
+        # URL stored at join time.
+        override = os.getenv("EE_SERVER")
+        if override:
+            self.config.server = override
 
     @property
     def enabled(self) -> bool:
@@ -217,17 +265,36 @@ class Tracker:
         return self._request("GET", "/api/version")
 
     def check_for_updates(self) -> str | None:
-        """Return a warning string when the local checkout is behind upstream."""
+        """
+        Warn only when the local checkout is genuinely *behind* upstream.
+
+        Comparing SHAs alone only proves they differ — a local commit that is
+        ahead of upstream, or a cached upstream response, would otherwise
+        produce a bogus "run git pull".  When the upstream commit is present
+        locally we can tell the two apart; when it is not, we say so neutrally
+        instead of guessing.
+        """
         info = self.upstream_version()
         if not info or "sha" not in info:
             return None
         local = git_commit()
         if not local:
             return None
-        if not info["sha"].startswith(local):
-            return (
-                f"[update] upstream is at {info['short_sha']} "
-                f"({info.get('message', '')[:60]}); local is {local}. "
-                f"Run: git pull"
-            )
-        return None
+        remote_sha = info["sha"]
+        if remote_sha.startswith(local):
+            return None  # up to date
+
+        have = _git("cat-file", "-e", f"{remote_sha}^{{commit}}")
+        if have is not None and have.returncode == 0:
+            # We have the upstream commit locally, so the relationship is knowable.
+            behind = _git("merge-base", "--is-ancestor", "HEAD", remote_sha)
+            if behind is not None and behind.returncode == 0:
+                return (
+                    f"[update] behind upstream {info['short_sha']} "
+                    f"({info.get('message', '')[:60]}). Run: git pull"
+                )
+            return None  # ahead of, or diverged from, upstream: not a problem
+        return (
+            f"[update] upstream is at {info['short_sha']}; local {local} "
+            f"differs. Run: git fetch to compare."
+        )

@@ -42,11 +42,11 @@ from stages.common import normalize_base64_alphabet
 
 def _join_network(config) -> None:
     """Persist a join token, then confirm the server is reachable."""
-    path = save_config(config.join_network, config.server, config.runner)
+    path = save_config(config.join_network, config.server)
     tracker = Tracker()
     print(f"[network] token saved to {path}")
     print(f"[network] server {tracker.config.server}")
-    print(f"[network] runner {tracker.config.runner}")
+    print(f"[network] runner {tracker.config.runner}  (hashed machine id)")
 
     version = tracker.upstream_version()
     if version and "sha" in version:
@@ -94,7 +94,7 @@ def main() -> None:
         return
 
     # --- tracker: was this exact search space already covered? ---
-    tracker = None if config.no_track else Tracker(server=config.server)
+    tracker = None if config.no_track else Tracker()
     fingerprint = None
     dictionary_sha = None
 

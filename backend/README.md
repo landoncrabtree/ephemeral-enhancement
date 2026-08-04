@@ -50,11 +50,28 @@ If someone already covered that exact space you get:
 
 | Flag | Effect |
 |------|--------|
-| `--join-network TOKEN` | Save token and exit |
-| `--server URL` | Override server (also stored on join) |
-| `--runner NAME` | Label your runs (default `user@host`) |
+| `--join-network TOKEN` | Save token (and `--server`) then exit |
+| `--server URL` | Server to join. **Only valid with `--join-network`** — it is stored in `~/.ee/config` and reused automatically |
 | `--no-track` | Ignore the tracker for this run |
 | `--force` | Run even if already covered |
+
+After joining, normal runs need no network flags at all.
+
+## Runner identity
+
+Runs are attributed to a pseudonymous machine id such as `ee-dd15aae12a40`.
+It is `sha256(hardware id)` truncated to 12 hex characters, sourced from:
+
+| OS | Source |
+|----|--------|
+| macOS | `IOPlatformUUID` |
+| Linux | `/etc/machine-id` |
+| Windows | registry `MachineGuid` |
+| any | MAC address fallback |
+
+The raw hardware id never leaves the machine — only the hash is sent — so the
+dashboard gets a stable per-machine handle without exposing a username,
+hostname, MAC or hardware UUID. Set `runner=` in `~/.ee/config` to override.
 
 ## Why runs are keyed by fingerprint, not pipeline name
 
