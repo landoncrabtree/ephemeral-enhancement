@@ -86,7 +86,10 @@ def upsert_run(data: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
         was_partial = existing["status"] != "complete"
         now_complete = data.get("status") == "complete"
         more_hits = (data.get("hits") or 0) > (existing["hits"] or 0)
-        if not (was_partial and now_complete) and not more_hits:
+        # A resubmission that fills in a previously missing plaintext is an
+        # improvement even when the hit count is unchanged.
+        adds_plaintext = bool(data.get("best_plaintext")) and not existing["best_plaintext"]
+        if not (was_partial and now_complete) and not more_hits and not adds_plaintext:
             return False, existing
 
     cols = [

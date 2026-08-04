@@ -142,12 +142,14 @@ def main() -> None:
 
     results = executor.execute(total_combinations)
 
-    # display_results pops "preview" out of each meta dict, so capture the best
-    # hit's plaintext before rendering or it never reaches the tracker.
-    best_score, best_meta = results.hits[0] if results.hits else (None, None)
-    best_plaintext = None
-    if best_meta:
-        best_meta = dict(best_meta)
+    # Capture the best hit before display_results(), which both sorts hits in
+    # place and pops "preview" out of each metadata dict to print it. Reading
+    # afterwards loses the plaintext; reading hits[0] beforehand would pick an
+    # arbitrary hit, since the list is unsorted until display_results runs.
+    best_score, best_meta, best_plaintext = None, None, None
+    if results.hits:
+        best_score, meta = max(results.hits, key=lambda h: h[0])
+        best_meta = dict(meta)
         best_plaintext = best_meta.pop("preview", None)
 
     display_results(results, config.max_hits)
