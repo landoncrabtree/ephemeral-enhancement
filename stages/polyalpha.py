@@ -26,8 +26,19 @@ POLYALPHA_MODE_NAMES = ("normal", "autokey")
 
 # Alphabet modes. Index 0 is the 26-char alphabet so that alphabet 0 + mode 0
 # (normal) still occupies the start of the search space.
-N_POLYALPHA_ALPHABETS = 2
-POLYALPHA_ALPHABET_NAMES = ("alpha26", "alpha52")
+ALPHABET_26 = 0
+ALPHABET_52 = 1
+ALPHABET_B64 = 2
+ALPHABET_ALNUM62 = 3
+ALPHABET_ALL95 = 4
+N_POLYALPHA_ALPHABETS = 5
+POLYALPHA_ALPHABET_NAMES = (
+    "alpha26",
+    "alpha52",
+    "b64",
+    "alnum62",
+    "all_printable",
+)
 
 # ---------------------------------------------------------------------------
 # 52-char alphabet helpers
@@ -35,6 +46,56 @@ POLYALPHA_ALPHABET_NAMES = ("alpha26", "alpha52")
 _ALPHA52 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 _MOD52 = 52
 _ORD52 = {ch: i for i, ch in enumerate(_ALPHA52)}
+
+# ---------------------------------------------------------------------------
+# Extended fixed alphabets
+# ---------------------------------------------------------------------------
+# Standard base64 alphabet (RFC 4648).  A polyalphabetic layer over this
+# alphabet maps base64 onto base64, so the ciphertext stays decodable — the
+# natural construction when a puzzle wraps a b64 blob in a classical cipher.
+_ALPHA_B64 = _ALPHA52 + "0123456789+/"
+# Alphanumeric only: shifts letters and digits but leaves '+' and '/' in place.
+_ALPHA_ALNUM62 = _ALPHA52 + "0123456789"
+# Every printable ASCII character (space through '~'), matching the
+# all-printable charset used by the Caesar/Affine stages.
+_ALPHA_ALL95 = "".join(chr(i) for i in range(32, 127))
+
+# Fixed (non case-preserving) alphabets, keyed by alphabet index.  Index 0 is
+# absent because the 26-char mode preserves the case of each source character
+# instead of treating upper/lower as distinct symbols.
+_FIXED_ALPHABETS: dict[int, tuple[str, dict[str, int], int]] = {
+    ALPHABET_52: (_ALPHA52, _ORD52, _MOD52),
+    ALPHABET_B64: (
+        _ALPHA_B64,
+        {ch: i for i, ch in enumerate(_ALPHA_B64)},
+        len(_ALPHA_B64),
+    ),
+    ALPHABET_ALNUM62: (
+        _ALPHA_ALNUM62,
+        {ch: i for i, ch in enumerate(_ALPHA_ALNUM62)},
+        len(_ALPHA_ALNUM62),
+    ),
+    ALPHABET_ALL95: (
+        _ALPHA_ALL95,
+        {ch: i for i, ch in enumerate(_ALPHA_ALL95)},
+        len(_ALPHA_ALL95),
+    ),
+}
+
+
+def _resolve_alphabet(
+    alpha52: bool, alphabet: int | None
+) -> tuple[str, dict[str, int], int] | None:
+    """
+    Resolve the alphabet selection to a fixed-alphabet table.
+
+    ``alphabet`` takes precedence when given; ``alpha52`` is the older boolean
+    form kept so existing callers keep working. Returns None for the 26-char
+    case-preserving mode, which is handled separately.
+    """
+    if alphabet is None:
+        alphabet = ALPHABET_52 if alpha52 else ALPHABET_26
+    return _FIXED_ALPHABETS.get(alphabet)
 
 # ---------------------------------------------------------------------------
 # 26-char alphabet helpers
@@ -67,14 +128,15 @@ def _key_vals26(key: str) -> list[int]:
 
 def _key_vals52(key: str) -> list[int]:
     """Extract 0-51 key values, skipping non-alpha."""
-    return [_ORD52[ch] for ch in key if ch in _ORD52]
+    return [_O[ch] for ch in key if ch in _O]
 
 
 # ---------------------------------------------------------------------------
 # Vigenere
 # ---------------------------------------------------------------------------
 
-def vigenere_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+def vigenere_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
+        alphabet: int | None = None) -> str | None:
     """
     Vigenere decrypt: P = (C - K) mod N.
 
@@ -82,17 +144,19 @@ def vigenere_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str
         alpha52: If True, use 52-char case-sensitive alphabet.
     Returns None if key has no alpha characters.
     """
-    if alpha52:
-        kv = _key_vals52(key)
+    _tbl = _resolve_alphabet(alpha52, alphabet)
+    if _tbl is not None:
+        _A, _O, _M = _tbl
+        kv = [_O[c] for c in key if c in _O]
         if not kv:
             return None
         klen = len(kv)
         out: list[str] = []
         j = 0
         for ch in ciphertext:
-            if ch in _ORD52:
-                pv = (_ORD52[ch] - kv[j % klen]) % _MOD52
-                out.append(_ALPHA52[pv])
+            if ch in _O:
+                pv = (_O[ch] - kv[j % klen]) % _M
+                out.append(_A[pv])
                 j += 1
             else:
                 out.append(ch)
@@ -119,24 +183,27 @@ def vigenere_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str
 # Beaufort (self-reciprocal)
 # ---------------------------------------------------------------------------
 
-def beaufort_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+def beaufort_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
+        alphabet: int | None = None) -> str | None:
     """
     Beaufort decrypt: P = (K - C) mod N.
 
     Beaufort is self-reciprocal (encrypt == decrypt).
     Returns None if key has no alpha characters.
     """
-    if alpha52:
-        kv = _key_vals52(key)
+    _tbl = _resolve_alphabet(alpha52, alphabet)
+    if _tbl is not None:
+        _A, _O, _M = _tbl
+        kv = [_O[c] for c in key if c in _O]
         if not kv:
             return None
         klen = len(kv)
         out: list[str] = []
         j = 0
         for ch in ciphertext:
-            if ch in _ORD52:
-                pv = (kv[j % klen] - _ORD52[ch]) % _MOD52
-                out.append(_ALPHA52[pv])
+            if ch in _O:
+                pv = (kv[j % klen] - _O[ch]) % _M
+                out.append(_A[pv])
                 j += 1
             else:
                 out.append(ch)
@@ -163,24 +230,27 @@ def beaufort_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str
 # Autokey variants (plaintext extends the key)
 # ---------------------------------------------------------------------------
 
-def autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+def autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
+        alphabet: int | None = None) -> str | None:
     """
     Vigenere autokey decrypt: P = (C - K) mod N, plaintext extends key.
 
     Returns None if key has no alpha characters.
     """
-    if alpha52:
-        kv = _key_vals52(key)
+    _tbl = _resolve_alphabet(alpha52, alphabet)
+    if _tbl is not None:
+        _A, _O, _M = _tbl
+        kv = [_O[c] for c in key if c in _O]
         if not kv:
             return None
         ext = list(kv)
         out: list[str] = []
         j = 0
         for ch in ciphertext:
-            if ch in _ORD52:
-                cv = _ORD52[ch]
-                pv = (cv - ext[j]) % _MOD52
-                out.append(_ALPHA52[pv])
+            if ch in _O:
+                cv = _O[ch]
+                pv = (cv - ext[j]) % _M
+                out.append(_A[pv])
                 ext.append(pv)
                 j += 1
             else:
@@ -205,24 +275,27 @@ def autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str 
         return "".join(out)
 
 
-def beaufort_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+def beaufort_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
+        alphabet: int | None = None) -> str | None:
     """
     Beaufort autokey decrypt: P = (K - C) mod N, plaintext extends key.
 
     Returns None if key has no alpha characters.
     """
-    if alpha52:
-        kv = _key_vals52(key)
+    _tbl = _resolve_alphabet(alpha52, alphabet)
+    if _tbl is not None:
+        _A, _O, _M = _tbl
+        kv = [_O[c] for c in key if c in _O]
         if not kv:
             return None
         ext = list(kv)
         out: list[str] = []
         j = 0
         for ch in ciphertext:
-            if ch in _ORD52:
-                cv = _ORD52[ch]
-                pv = (ext[j] - cv) % _MOD52
-                out.append(_ALPHA52[pv])
+            if ch in _O:
+                cv = _O[ch]
+                pv = (ext[j] - cv) % _M
+                out.append(_A[pv])
                 ext.append(pv)
                 j += 1
             else:
@@ -247,7 +320,8 @@ def beaufort_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False
         return "".join(out)
 
 
-def porta_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+def porta_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
+        alphabet: int | None = None) -> str | None:
     """
     Porta autokey decrypt: Porta substitution with plaintext extending key.
 
@@ -256,23 +330,25 @@ def porta_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -
 
     Returns None if key has no alpha characters.
     """
-    if alpha52:
-        kv = _key_vals52(key)
+    _tbl = _resolve_alphabet(alpha52, alphabet)
+    if _tbl is not None:
+        _A, _O, _M = _tbl
+        kv = [_O[c] for c in key if c in _O]
         if not kv:
             return None
         ext = list(kv)
-        half = _MOD52 // 2  # 26
+        half = _M // 2  # 26
         out: list[str] = []
         j = 0
         for ch in ciphertext:
-            if ch in _ORD52:
-                cv = _ORD52[ch]
+            if ch in _O:
+                cv = _O[ch]
                 k = ext[j] // 2
                 if cv < half:
                     pv = half + (cv - k + half) % half
                 else:
                     pv = (cv - half + k) % half
-                out.append(_ALPHA52[pv])
+                out.append(_A[pv])
                 ext.append(pv)
                 j += 1
             else:
@@ -306,7 +382,8 @@ def porta_autokey_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -
 # Porta (self-reciprocal paired substitution)
 # ---------------------------------------------------------------------------
 
-def porta_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | None:
+def porta_decrypt(ciphertext: str, key: str, *, alpha52: bool = False,
+        alphabet: int | None = None) -> str | None:
     """
     Porta cipher (self-reciprocal), case-preserving (26-char) or case-sensitive (52-char).
 
@@ -316,23 +393,25 @@ def porta_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | 
 
     Returns None if key has no alpha characters.
     """
-    if alpha52:
-        kv = _key_vals52(key)
+    _tbl = _resolve_alphabet(alpha52, alphabet)
+    if _tbl is not None:
+        _A, _O, _M = _tbl
+        kv = [_O[c] for c in key if c in _O]
         if not kv:
             return None
         klen = len(kv)
-        half = _MOD52 // 2  # 26
+        half = _M // 2  # 26
         out: list[str] = []
         j = 0
         for ch in ciphertext:
-            if ch in _ORD52:
-                cv = _ORD52[ch]
+            if ch in _O:
+                cv = _O[ch]
                 k = kv[j % klen] // 2
                 if cv < half:
                     pv = half + (cv - k + half) % half
                 else:
                     pv = (cv - half + k) % half
-                out.append(_ALPHA52[pv])
+                out.append(_A[pv])
                 j += 1
             else:
                 out.append(ch)
@@ -364,20 +443,23 @@ def porta_decrypt(ciphertext: str, key: str, *, alpha52: bool = False) -> str | 
 # Trithemius (keyless — shift = character position)
 # ---------------------------------------------------------------------------
 
-def trithemius_decrypt(ciphertext: str, *, alpha52: bool = False) -> str:
+def trithemius_decrypt(ciphertext: str, *, alpha52: bool = False,
+                       alphabet: int | None = None) -> str:
     """
     Trithemius decrypt: P = (C - position) mod N.
 
     Position increments for each alpha character; non-alpha passes through.
     Keyless cipher — no dictionary key needed.
     """
-    if alpha52:
+    _tbl = _resolve_alphabet(alpha52, alphabet)
+    if _tbl is not None:
+        _A, _O, _M = _tbl
         out: list[str] = []
         pos = 0
         for ch in ciphertext:
-            if ch in _ORD52:
-                pv = (_ORD52[ch] - pos) % _MOD52
-                out.append(_ALPHA52[pv])
+            if ch in _O:
+                pv = (_O[ch] - pos) % _M
+                out.append(_A[pv])
                 pos += 1
             else:
                 out.append(ch)

@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stages.key_derivation import N_KEY_DERIVATION_MODES
+from stages.charsets import N_CHARSET_MODES
 from stages.columnar import N_COLUMNAR_CHARSET_MODES
 from stages.railfence import N_RAILFENCE_CHARSET_MODES
 from stages.polyalpha import N_POLYALPHA_ALPHABETS, N_POLYALPHA_MODES
@@ -28,6 +29,8 @@ _CLASSICAL_STAGES = {
     "affine",
     "beaufort",
     "beaufort26",
+    "beaufort62",
+    "beaufort64",
     "beaufort52",
     "caesar",
     "bifid",
@@ -39,13 +42,19 @@ _CLASSICAL_STAGES = {
     "myszkowski",
     "porta",
     "porta26",
+    "porta62",
+    "porta64",
     "porta52",
     "redefense",
     "trithemius",
     "trithemius26",
+    "trithemius62",
+    "trithemius64",
     "trithemius52",
     "vigenere",
     "vigenere26",
+    "vigenere62",
+    "vigenere64",
     "vigenere52",
     "xor",
     "railfence",
@@ -125,10 +134,13 @@ def axes_for_pipeline(
             from stages.caesar import N_CAESAR_TOTAL
             axes.append(StageAxis("caesar", N_CAESAR_TOTAL))
         elif st == "railfence":
-            axes.append(StageAxis("railfence", 29 * N_RAILFENCE_CHARSET_MODES))  # 2-30 rails × 2 modes
+            axes.append(StageAxis("railfence", 29 * N_RAILFENCE_CHARSET_MODES))  # 2-30 rails × charset modes
         elif st == "scytale":
-            axes.append(StageAxis("scytale", 99))  # 2-100 columns
-        elif st in ("bifid", "myszkowski", "xor"):
+            # 2-100 columns × charset modes
+            axes.append(StageAxis("scytale", 99 * N_CHARSET_MODES))
+        elif st == "myszkowski":
+            axes.append(StageAxis("myszkowski", k * N_CHARSET_MODES))
+        elif st in ("bifid", "xor"):
             axes.append(StageAxis(st, k))
         elif st in ("vigenere", "beaufort", "porta"):
             # Base name sweeps both alphabets; the 26/52 variants pin one.
@@ -136,7 +148,9 @@ def axes_for_pipeline(
                 StageAxis(st, k * N_POLYALPHA_MODES * N_POLYALPHA_ALPHABETS)
             )
         elif st in ("vigenere26", "beaufort26", "porta26",
-                    "vigenere52", "beaufort52", "porta52"):
+                    "vigenere52", "beaufort52", "porta52",
+                    "vigenere62", "beaufort62", "porta62",
+                    "vigenere64", "beaufort64", "porta64"):
             axes.append(StageAxis(st, k * N_POLYALPHA_MODES))
         elif st == "trithemius":
             # Keyless, but still sweeps both alphabets.
@@ -154,7 +168,9 @@ def axes_for_pipeline(
             iv_mult = N_IV_STRATEGIES if info.needs_iv else 1
             size = k * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES * iv_mult
             axes.append(StageAxis(st, size))
-        elif st in ("b64", "hex", "decimal", "reverse", "trithemius26", "trithemius52"):
+        elif st in ("b64", "hex", "decimal", "reverse",
+                    "trithemius26", "trithemius52",
+                    "trithemius62", "trithemius64"):
             continue
     return axes
 

@@ -7,18 +7,23 @@ import math
 #     stay at their original positions ("Move only letters")
 # 1 = all: transpose every character including spaces and punctuation
 #     ("Move spaces, punctuation, and capitalization")
-N_COLUMNAR_CHARSET_MODES = 2
-CHARSET_LETTERS_ONLY = 0
-CHARSET_ALL = 1
+from stages.charsets import (  # noqa: F401  (re-exported for callers)
+    CHARSET_ALL,
+    CHARSET_ALPHA,
+    CHARSET_ALPHANUMERIC,
+    CHARSET_LETTERS_ONLY,
+    N_CHARSET_MODES,
+    is_selected,
+)
+
+N_COLUMNAR_CHARSET_MODES = N_CHARSET_MODES
 
 _ASCII_ALPHA = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
 
 def _is_transposable(ch: str, charset_mode: int) -> bool:
     """Return True if the character should be transposed in the given mode."""
-    if charset_mode == CHARSET_ALL:
-        return True
-    return ch in _ASCII_ALPHA
+    return is_selected(ch, charset_mode)
 
 
 def _key_order(keyword: str) -> list[int]:
@@ -72,7 +77,8 @@ def columnar_decrypt(cipher: str, keyword: str, charset_mode: int = CHARSET_ALL)
     Args:
         cipher: The ciphertext to decrypt.
         keyword: The keyword defining column order.
-        charset_mode: Which characters to transpose (0=alpha, 1=alnum, 2=all).
+        charset_mode: Which characters to transpose (0=alpha, 1=alphanumeric,
+            2=all).
             In alpha/alnum modes, non-transposable characters stay at their
             original positions; only the transposable characters are rearranged.
     """

@@ -38,6 +38,10 @@ from stages.mcrypt_stage import mcrypt_decrypt_stage
 from stages.mcrypt_wrapper import McryptHandleCache
 from stages.myszkowski import myszkowski_decrypt
 from stages.polyalpha import (
+    ALPHABET_26,
+    ALPHABET_52,
+    ALPHABET_ALNUM62,
+    ALPHABET_B64,
     N_POLYALPHA_MODES,
     POLYALPHA_ALPHABET_NAMES,
     POLYALPHA_MODE_NAMES,
@@ -54,6 +58,7 @@ from stages.railfence import (
     railfence_decrypt,
     redefense_decrypt,
 )
+from stages.charsets import N_CHARSET_MODES, charset_name
 from stages.reverse import reverse_text
 from stages.scytale import scytale_decrypt
 from stages.decimal_encoding import decimal_decode
@@ -79,6 +84,18 @@ def _nearest_valid_key_size(key_len: int, info: "McryptStageInfo") -> int:
     return info.max_key_size
 
 
+_B64_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+)
+
+_ALPHABET_SUFFIXES = {
+    "26": ALPHABET_26,
+    "52": ALPHABET_52,
+    "64": ALPHABET_B64,
+    "62": ALPHABET_ALNUM62,
+}
+
+
 def _split_alphabet_suffix(stage: str) -> tuple[str, int | None]:
     """
     Split a polyalphabetic stage name into (base_name, pinned_alphabet_index).
@@ -87,10 +104,9 @@ def _split_alphabet_suffix(stage: str) -> tuple[str, int | None]:
     and the bare ``"beaufort"`` -> ``("beaufort", None)``, meaning the alphabet
     is swept as part of the stage's axis rather than pinned.
     """
-    if stage.endswith("52"):
-        return stage[:-2], 1
-    if stage.endswith("26"):
-        return stage[:-2], 0
+    for suffix, idx in _ALPHABET_SUFFIXES.items():
+        if stage.endswith(suffix):
+            return stage[: -len(suffix)], idx
     return stage, None
 
 
@@ -231,12 +247,15 @@ class StageExecutor:
 
         elif stage in ("vigenere", "beaufort", "porta",
                       "vigenere26", "beaufort26", "porta26",
-                      "vigenere52", "beaufort52", "porta52"):
+                      "vigenere52", "beaufort52", "porta52",
+                      "vigenere62", "beaufort62", "porta62",
+                      "vigenere64", "beaufort64", "porta64"):
             return self._execute_polyalpha(
                 stage, payload, kind, param_idxs, axis_pos, meta
             )
 
-        elif stage in ("trithemius", "trithemius26", "trithemius52"):
+        elif stage in ("trithemius", "trithemius26", "trithemius52",
+                       "trithemius62", "trithemius64"):
             return self._execute_trithemius(
                 stage, payload, kind, param_idxs, axis_pos, meta
             )
@@ -256,16 +275,39 @@ class StageExecutor:
     def _execute_b64(
         self, payload: str | bytes, kind: Kind, axis_pos: int
     ) -> tuple[str | bytes, Kind, int] | None:
-        """Execute Base64 decode stage."""
+        """
+        Execute Base64 decode stage.
+
+        Validates strictly: any character outside the base64 alphabet means the
+        upstream stage produced something that is not base64, so the branch is
+        pruned by returning None. Python's ``b64decode(validate=False)`` would
+        instead *silently discard* those characters, yielding a short
+        misaligned blob that can score as a false positive (see ATTEMPTS.md #8,
+        where an all-printable classical layer produced 16,793 bogus hits).
+        """
         if kind != "text":
             return None
 
+        # Whitespace is never significant in base64 (wrapped lines, and the
+        # spaces some transcripts carry), so drop it before validating.
+        text = "".join(payload.split())  # type: ignore[union-attr]
+        core = text.rstrip("=")
+        if not core:
+            return None
+
+        if not _B64_CHARS.issuperset(core):
+            return None
+
+        # A remainder of 1 can never be produced by base64 encoding.
+        if len(core) % 4 == 1:
+            return None
+
         try:
-            # Surrounding whitespace survives upstream stages (e.g. a decimal
-            # decode ending in CRLF, then reversed), so trim before padding.
-            text = payload.strip()  # type: ignore[union-attr]
-            # Pad to multiple of 4 if needed (some sources omit trailing '=')
-            padded = text + "=" * ((4 - len(text) % 4) % 4)
+            # Force-pad: many sources omit trailing '='. The alphabet was
+            # already validated above, so validate=False has nothing left to
+            # silently discard — this avoids depending on CPython's stricter
+            # strict_mode rules while still rejecting non-base64 input.
+            padded = core + "=" * ((4 - len(core) % 4) % 4)
             decoded = base64.b64decode(padded, validate=False)
         except Exception:
             return None
@@ -378,7 +420,7 @@ class StageExecutor:
         rails_idx = combined % 29
         num_rails = rails_idx + 2  # 0-28 maps to 2-30 rails
         meta["railfence_rails"] = num_rails
-        meta["railfence_charset"] = "letters_only" if charset_mode == 0 else "all"
+        meta["railfence_charset"] = charset_name(charset_mode)
         result = railfence_decrypt(payload, num_rails, charset_mode=charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
@@ -394,10 +436,14 @@ class StageExecutor:
         if kind != "text":
             return None
 
-        cols_idx = param_idxs[axis_pos]
+        combined = param_idxs[axis_pos]
+        # charset mode is the high-order component, column count the low-order
+        cols_idx = combined % 99
+        charset_mode = combined // 99
         n_cols = cols_idx + 2  # 0-based index maps to 2..N columns
         meta["scytale_cols"] = n_cols
-        result = scytale_decrypt(payload, n_cols)  # type: ignore[arg-type]
+        meta["scytale_charset"] = charset_name(charset_mode)
+        result = scytale_decrypt(payload, n_cols, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_bifid(
@@ -441,7 +487,7 @@ class StageExecutor:
         key_idx = ki_combined % n_eff
         key = self._get_effective_key(key_idx)
         meta["columnar_key"] = key
-        meta["columnar_charset"] = "letters_only" if charset_mode == 0 else "all"
+        meta["columnar_charset"] = charset_name(charset_mode)
         result = columnar_decrypt(payload, key, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
@@ -466,7 +512,7 @@ class StageExecutor:
         k2 = self._get_effective_key(key_pair_idx % n_eff)
         meta["double_columnar_key1"] = k1
         meta["double_columnar_key2"] = k2
-        meta["double_columnar_charset"] = "letters_only" if charset_mode == 0 else "all"
+        meta["double_columnar_charset"] = charset_name(charset_mode)
         result = double_columnar_decrypt(payload, k1, k2, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
@@ -516,10 +562,14 @@ class StageExecutor:
         if kind != "text":
             return None
 
-        ki_combined = param_idxs[axis_pos]
+        combined = param_idxs[axis_pos]
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        ki_combined = combined % n_eff
+        charset_mode = combined // n_eff
         key = self._get_effective_key(ki_combined)
         meta["myszkowski_key"] = key
-        result = myszkowski_decrypt(payload, key)  # type: ignore[arg-type]
+        meta["myszkowski_charset"] = charset_name(charset_mode)
+        result = myszkowski_decrypt(payload, key, charset_mode)  # type: ignore[arg-type]
         return (result, kind, axis_pos + 1)
 
     def _execute_redefense(
@@ -615,13 +665,12 @@ class StageExecutor:
         meta[f"{base_name}_key"] = key
         meta[f"{base_name}_mode"] = POLYALPHA_MODE_NAMES[mode]
         meta[f"{base_name}_alphabet"] = POLYALPHA_ALPHABET_NAMES[alpha_idx]
-        alpha52 = alpha_idx == 1
 
         if mode == 0:
             fn = self._POLYALPHA_NORMAL_FNS[base_name]
         else:
             fn = self._POLYALPHA_AUTOKEY_FNS[base_name]
-        result = fn(payload, key, alpha52=alpha52)  # type: ignore[arg-type]
+        result = fn(payload, key, alphabet=alpha_idx)  # type: ignore[arg-type]
         if result is None:
             return None
         return (result, kind, axis_pos + 1)
@@ -649,7 +698,7 @@ class StageExecutor:
 
         meta["trithemius_applied"] = True
         meta["trithemius_alphabet"] = POLYALPHA_ALPHABET_NAMES[alpha_idx]
-        result = trithemius_decrypt(payload, alpha52=alpha_idx == 1)  # type: ignore[arg-type]
+        result = trithemius_decrypt(payload, alphabet=alpha_idx)  # type: ignore[arg-type]
         return (result, kind, axis_pos + consumed)
 
     def _execute_reverse(

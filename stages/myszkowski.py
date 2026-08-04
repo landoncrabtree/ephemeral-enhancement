@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+from stages.charsets import (  # noqa: F401  (re-exported for callers)
+    CHARSET_ALL,
+    CHARSET_ALPHA,
+    CHARSET_ALPHANUMERIC,
+    N_CHARSET_MODES,
+    merge_selected,
+    split_selected,
+)
+
+N_MYSZKOWSKI_CHARSET_MODES = N_CHARSET_MODES
+
 
 def _myszkowski_key_order(keyword: str) -> list[int]:
     """
@@ -12,7 +23,7 @@ def _myszkowski_key_order(keyword: str) -> list[int]:
     return [char_rank[ch] for ch in keyword]
 
 
-def myszkowski_decrypt(cipher: str, keyword: str) -> str:
+def _myszkowski_decrypt_raw(cipher: str, keyword: str) -> str:
     """
     Decrypt Myszkowski transposition cipher.
 
@@ -64,3 +75,26 @@ def myszkowski_decrypt(cipher: str, keyword: str) -> str:
             if grid[r][c] is not None:
                 out.append(grid[r][c])
     return "".join(out)
+
+
+def myszkowski_decrypt(
+    cipher: str, keyword: str, charset_mode: int = CHARSET_ALL
+) -> str:
+    """
+    Decrypt Myszkowski transposition, restricted to a character set.
+
+    Args:
+        cipher: The ciphertext to decrypt.
+        keyword: The keyword defining column ranks.
+        charset_mode: 0=alpha, 1=alphanumeric, 2=all. In the restricted modes
+            only the selected characters are rearranged; everything else keeps
+            its original position.
+    """
+    if charset_mode == CHARSET_ALL:
+        return _myszkowski_decrypt_raw(cipher, keyword)
+
+    chars, positions = split_selected(cipher, charset_mode)
+    if not chars:
+        return cipher
+    decrypted = _myszkowski_decrypt_raw("".join(chars), keyword)
+    return merge_selected(cipher, positions, decrypted)

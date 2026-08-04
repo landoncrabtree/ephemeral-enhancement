@@ -10,8 +10,19 @@ Decrypt: write ciphertext into columns, read row-by-row.
 
 from __future__ import annotations
 
+from stages.charsets import (  # noqa: F401  (re-exported for callers)
+    CHARSET_ALL,
+    CHARSET_ALPHA,
+    CHARSET_ALPHANUMERIC,
+    N_CHARSET_MODES,
+    merge_selected,
+    split_selected,
+)
 
-def scytale_decrypt(text: str, n_cols: int) -> str:
+N_SCYTALE_CHARSET_MODES = N_CHARSET_MODES
+
+
+def _scytale_decrypt_raw(text: str, n_cols: int) -> str:
     """
     Decrypt a scytale cipher.
 
@@ -40,3 +51,24 @@ def scytale_decrypt(text: str, n_cols: int) -> str:
     return "".join(
         grid[r][c] for r in range(rows) for c in range(n_cols) if grid[r][c]
     )
+
+
+def scytale_decrypt(text: str, n_cols: int, charset_mode: int = CHARSET_ALL) -> str:
+    """
+    Decrypt a scytale cipher, restricted to a character set.
+
+    Args:
+        text: The ciphertext to decrypt.
+        n_cols: Number of columns (band turns around the cylinder).
+        charset_mode: 0=alpha, 1=alphanumeric, 2=all. In the restricted modes
+            only the selected characters are rearranged; everything else keeps
+            its original position.
+    """
+    if charset_mode == CHARSET_ALL:
+        return _scytale_decrypt_raw(text, n_cols)
+
+    chars, positions = split_selected(text, charset_mode)
+    if not chars:
+        return text
+    decrypted = _scytale_decrypt_raw("".join(chars), n_cols)
+    return merge_selected(text, positions, decrypted)
