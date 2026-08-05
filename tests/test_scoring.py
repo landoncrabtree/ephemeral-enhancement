@@ -198,3 +198,35 @@ class TestShortTextDamping:
         text = "the quick brown fox jumps over"
         assert len(text) > MIN_RELIABLE_LENGTH
         assert english_score(text) == english_score(text)
+
+
+class TestDictionaryComments:
+    """Curated dictionaries document their sources; comments are not keys."""
+
+    def _write(self, tmp_path, text):
+        p = tmp_path / "d.txt"
+        p.write_text(text)
+        return str(p)
+
+    def test_comments_skipped(self, tmp_path):
+        from core.utils import load_dictionary
+
+        path = self._write(tmp_path, "# source: wiki\nTheGiant\n# note\nZombies\n")
+        assert load_dictionary(path) == ["TheGiant", "Zombies"]
+
+    def test_blank_lines_skipped(self, tmp_path):
+        from core.utils import load_dictionary
+
+        assert load_dictionary(self._write(tmp_path, "A\n\n  \nB\n")) == ["A", "B"]
+
+    def test_escaped_hash_is_a_key(self, tmp_path):
+        from core.utils import load_dictionary
+
+        assert load_dictionary(self._write(tmp_path, "\\#hashtag\n")) == ["#hashtag"]
+
+    def test_keys_with_spaces_preserved(self, tmp_path):
+        from core.utils import load_dictionary
+
+        assert load_dictionary(self._write(tmp_path, "the giant has risen\n")) == [
+            "the giant has risen"
+        ]

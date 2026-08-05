@@ -62,16 +62,27 @@ def apply_case_variant(word: str, variant: int) -> str:
 
 def load_dictionary(path: str) -> list[str]:
     """
-    Load a dictionary file containing one word per line.
+    Load a dictionary file containing one key per line.
+
+    Lines beginning with '#' are comments and are skipped, so curated
+    dictionaries can document where their keys came from without those
+    comments being brute-forced as keys. A key that genuinely starts with '#'
+    can be escaped as '\\#'.
 
     Args:
         path: Path to dictionary file
 
     Returns:
-        List of words (stripped of whitespace)
+        List of keys (stripped of whitespace, comments and blanks removed)
     """
+    keys: list[str] = []
     with open(resolve_data_path(path), "r") as f:
-        return [w.strip() for w in f if w.strip()]
+        for line in f:
+            word = line.strip()
+            if not word or word.startswith("#"):
+                continue
+            keys.append(word[1:] if word.startswith("\\#") else word)
+    return keys
 
 
 def limit_keys(dictionary: list[str], limit: int) -> list[str]:

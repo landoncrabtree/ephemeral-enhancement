@@ -1,0 +1,65 @@
+# Druon / ElGiganteX4 ARG leads (callofduty.fandom.com/wiki/Druon).
+# --vary-case supplies lower/upper/title, so no manual case variants here.
+# CamelCase forms ARE listed: title-casing "TheGiantHasRisen" yields
+# "Thegianthasrisen", so CamelCase is not reachable from the spaced form.
+the giant has risen
+TheGiantHasRisen
+the giant is risen
+TheGiantIsRisen
+thegianthasrisen
+thegiantisrisen
+death is not the final chapter
+DeathIsNotTheFinalChapter
+deathisnotthefinalchapter
+cordis die
+CordisDie
+druon
+antigoon
+DruonAntigoon
+druon antigoon
+xx_DA_xx
+Xx_DA_xX
+xxDAxx
+Xx_drUON_Antigoon_XX
+xx_druon_antigoon_xx
+ElGiganteX4
+elgigantex4
+el gigante
+ElGigante
+090501090603
+951963
+9051963
+05042030
+05042031
+walcourt
+antwerp
+monty
+DoctorMonty
+doctor monty
+DrMonty
+red scarf
+redscarf
+the truth depot
+TheTruthDepot
+thread count
+ThreadCount
+blogosphere
+project udder chaos
+ProjectUdderChaos
+maurice baak
+MauriceBaak
+henri favager
+abasi hakim
+raul menendez
+menendez
+nile river coalition
+common defense pact
+nul ne peut passer
+paient le peage
+peage
+der riese
+DerRiese
+TheGiant
+zombies
+scheldt
+toll
