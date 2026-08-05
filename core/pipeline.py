@@ -12,7 +12,9 @@ from dataclasses import dataclass
 from stages.key_derivation import N_KEY_DERIVATION_MODES
 from stages.amsco import N_AMSCO_PATTERNS
 from stages.charsets import N_CHARSET_MODES
+from stages.playfair import N_PLAYFAIR_GRIDS
 from stages.skip import MAX_BYPASS, N_SKIP_VALUES
+from stages.trifid import N_TRIFID_CUBES, N_TRIFID_PERIODS
 from stages.columnar import N_COLUMNAR_CHARSET_MODES
 from stages.railfence import N_RAILFENCE_CHARSET_MODES
 from stages.polyalpha import N_POLYALPHA_ALPHABETS, N_POLYALPHA_MODES
@@ -53,12 +55,14 @@ _CLASSICAL_STAGES = {
     "b64",
     "hex",
     "myszkowski",
+    "playfair",
     "porta",
     "porta26",
     "porta62",
     "porta64",
     "porta52",
     "redefense",
+    "trifid",
     "trithemius",
     "trithemius26",
     "trithemius62",
@@ -161,6 +165,14 @@ def axes_for_pipeline(
             # keys x chunk patterns (1-2 / 2-1) x charset modes
             axes.append(
                 StageAxis("amsco", k * N_AMSCO_PATTERNS * N_CHARSET_MODES)
+            )
+        elif st == "playfair":
+            # keys x grid sizes (5x5 / 6x6 / 8x8-base64)
+            axes.append(StageAxis("playfair", k * N_PLAYFAIR_GRIDS))
+        elif st == "trifid":
+            # keys x periods x cube sizes (3x3x3 / 4x4x4-base64)
+            axes.append(
+                StageAxis("trifid", k * N_TRIFID_PERIODS * N_TRIFID_CUBES)
             )
         elif st == "myszkowski":
             axes.append(StageAxis("myszkowski", k * N_CHARSET_MODES))

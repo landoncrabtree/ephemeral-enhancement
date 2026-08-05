@@ -60,7 +60,15 @@ from stages.railfence import (
 )
 from stages.charsets import N_CHARSET_MODES, charset_name
 from stages.amsco import N_AMSCO_PATTERNS, AMSCO_PATTERN_NAMES, amsco_decrypt
+from stages.playfair import N_PLAYFAIR_GRIDS, PLAYFAIR_GRID_NAMES, playfair_decrypt
 from stages.skip import MAX_BYPASS, MIN_SKIP, N_SKIP_VALUES, skip_decrypt
+from stages.trifid import (
+    MIN_PERIOD as TRIFID_MIN_PERIOD,
+    N_TRIFID_CUBES,
+    N_TRIFID_PERIODS,
+    TRIFID_CUBE_NAMES,
+    trifid_decrypt,
+)
 from stages.substitution import atbash_decrypt, keyword_decrypt
 from stages.reverse import reverse_text
 from stages.scytale import scytale_decrypt
@@ -274,6 +282,12 @@ class StageExecutor:
         elif stage == "reverse":
             return self._execute_reverse(payload, kind, meta, axis_pos)
 
+        elif stage == "playfair":
+            return self._execute_playfair(payload, kind, param_idxs, axis_pos, meta)
+
+        elif stage == "trifid":
+            return self._execute_trifid(payload, kind, param_idxs, axis_pos, meta)
+
         elif stage == "skip":
             return self._execute_skip(payload, kind, param_idxs, axis_pos, meta)
 
@@ -461,6 +475,59 @@ class StageExecutor:
         meta["scytale_cols"] = n_cols
         meta["scytale_charset"] = charset_name(charset_mode)
         result = scytale_decrypt(payload, n_cols, charset_mode)  # type: ignore[arg-type]
+        return (result, kind, axis_pos + 1)
+
+    def _execute_playfair(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Playfair digraph substitution stage."""
+        if kind != "text":
+            return None
+
+        combined = param_idxs[axis_pos]
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        ki_combined = combined % n_eff
+        grid_mode = combined // n_eff
+
+        key = self._get_effective_key(ki_combined)
+        meta["playfair_key"] = key
+        meta["playfair_grid"] = PLAYFAIR_GRID_NAMES[grid_mode]
+        result = playfair_decrypt(payload, key, grid_mode)  # type: ignore[arg-type]
+        if result is None:
+            return None
+        return (result, kind, axis_pos + 1)
+
+    def _execute_trifid(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute Trifid fractionation stage."""
+        if kind != "text":
+            return None
+
+        combined = param_idxs[axis_pos]
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+        ki_combined = combined % n_eff
+        rest = combined // n_eff
+        period = (rest % N_TRIFID_PERIODS) + TRIFID_MIN_PERIOD
+        cube_mode = rest // N_TRIFID_PERIODS
+
+        key = self._get_effective_key(ki_combined)
+        meta["trifid_key"] = key
+        meta["trifid_period"] = period
+        meta["trifid_cube"] = TRIFID_CUBE_NAMES[cube_mode]
+        result = trifid_decrypt(payload, key, period, cube_mode)  # type: ignore[arg-type]
+        if result is None:
+            return None
         return (result, kind, axis_pos + 1)
 
     def _execute_skip(
