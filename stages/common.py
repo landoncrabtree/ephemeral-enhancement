@@ -172,6 +172,15 @@ def word_score(text: str, common_words: set[str]) -> float:
     return recognized / len(words)
 
 
+# Letter-frequency statistics are meaningless on a handful of characters, so
+# the English bonus is damped below this length. Without it a 4-character
+# fragment like " 3C8" scores as high as real prose: chi-squared on 4 samples
+# is noise, and its single space is a 25% space ratio, which earns the full
+# spacing bonus. Genuine plaintexts here are far longer (the shortest solved
+# Revelations answer is 28 characters), so this costs nothing on real hits.
+MIN_RELIABLE_LENGTH = 16
+
+
 def english_score(text: str, common_words: set[str] | None = None) -> float:
     """
     Score how "English-like" the text is using multiple heuristics.
@@ -181,6 +190,9 @@ def english_score(text: str, common_words: set[str] | None = None) -> float:
     - Chi-squared frequency analysis (weight: 0.7)
     - Common word matching (weight: 0.3)
     - Space ratio bonus (up to 0.2 for proper word spacing)
+
+    The result is scaled down for text shorter than MIN_RELIABLE_LENGTH, where
+    those statistics are not yet meaningful.
     """
     if not text:
         return 0.0
@@ -211,7 +223,12 @@ def english_score(text: str, common_words: set[str] | None = None) -> float:
 
     # Weighted combination
     combined = (chi_score * 0.7) + (word_match_score * 0.3) + space_bonus
-    return min(1.0, combined)  # Cap at 1.0
+    combined = min(1.0, combined)  # Cap at 1.0
+
+    # Damp short samples, where the statistics above are unreliable.
+    if len(text) < MIN_RELIABLE_LENGTH:
+        combined *= len(text) / MIN_RELIABLE_LENGTH
+    return combined
 
 
 def combined_score(b: bytes, common_words: set[str] | None = None) -> float:

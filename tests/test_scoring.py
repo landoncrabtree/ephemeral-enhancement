@@ -152,3 +152,49 @@ class TestTypeDetection:
         assert printable_ratio(result1) == 1.0
         result2 = repeating_xor(b"AAAA", b"A")
         assert printable_ratio(result2) == 0.0
+
+
+class TestShortTextDamping:
+    """
+    Short fragments must not score like real prose.
+
+    A beaufort/all_printable sweep produced ' 3C8' — four characters of
+    garbage — at 1.851, essentially tied with the genuine 28-character
+    plaintext at 1.880. Chi-squared over four samples is noise, and the single
+    space is a 25% space ratio, which earned the full spacing bonus.
+    """
+
+    def test_four_char_fragment_scores_below_threshold(self):
+        from stages.common import combined_score
+
+        assert combined_score(b" 3C8") < 1.4
+
+    def test_single_character_is_not_english(self):
+        from stages.common import combined_score
+
+        assert combined_score(b"a") < 1.2
+
+    def test_real_plaintext_is_unaffected(self):
+        from stages.common import combined_score
+
+        assert combined_score(b"The many worlds are now one.") > 1.85
+
+    def test_long_plaintext_outranks_short_fragment(self):
+        from stages.common import combined_score
+
+        assert combined_score(b"The many worlds are now one.") > combined_score(b" 3C8")
+
+    def test_damping_is_proportional_to_length(self):
+        from stages.common import MIN_RELIABLE_LENGTH, english_score
+
+        text = "the quick brown fox jumps"
+        full = english_score(text[:MIN_RELIABLE_LENGTH])
+        half = english_score(text[: MIN_RELIABLE_LENGTH // 2])
+        assert half < full
+
+    def test_no_damping_at_or_above_threshold(self):
+        from stages.common import MIN_RELIABLE_LENGTH, english_score
+
+        text = "the quick brown fox jumps over"
+        assert len(text) > MIN_RELIABLE_LENGTH
+        assert english_score(text) == english_score(text)
