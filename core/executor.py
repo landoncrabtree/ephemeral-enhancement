@@ -60,6 +60,7 @@ from stages.railfence import (
 )
 from stages.charsets import N_CHARSET_MODES, charset_name
 from stages.amsco import N_AMSCO_PATTERNS, AMSCO_PATTERN_NAMES, amsco_decrypt
+from stages.hypercube import MAX_PERMS, MAX_SHAPES, hypercube_decrypt, shapes_for_length
 from stages.modern import get_modern_stage_info, is_modern_stage, modern_decrypt, strip_padding
 from stages.playfair import N_PLAYFAIR_GRIDS, PLAYFAIR_GRID_NAMES, playfair_decrypt
 from stages.skip import MAX_BYPASS, MIN_SKIP, N_SKIP_VALUES, skip_decrypt
@@ -288,6 +289,9 @@ class StageExecutor:
 
         elif stage == "trifid":
             return self._execute_trifid(payload, kind, param_idxs, axis_pos, meta)
+
+        elif stage == "hypercube":
+            return self._execute_hypercube(payload, kind, param_idxs, axis_pos, meta)
 
         elif stage == "skip":
             return self._execute_skip(payload, kind, param_idxs, axis_pos, meta)
@@ -532,6 +536,35 @@ class StageExecutor:
         result = trifid_decrypt(payload, key, period, cube_mode)  # type: ignore[arg-type]
         if result is None:
             return None
+        return (result, kind, axis_pos + 1)
+
+    def _execute_hypercube(
+        self,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """Execute hypercube (multi-axis reshape) transposition stage."""
+        if kind != "text":
+            return None
+
+        combined = param_idxs[axis_pos]
+        shape_idx = combined % MAX_SHAPES
+        rest = combined // MAX_SHAPES
+        perm_idx = rest % MAX_PERMS
+        charset_mode = rest // MAX_PERMS
+
+        result = hypercube_decrypt(payload, shape_idx, perm_idx, charset_mode)  # type: ignore[arg-type]
+        if result is None:
+            return None
+
+        shapes = shapes_for_length(len(payload))  # type: ignore[arg-type]
+        if shape_idx < len(shapes):
+            meta["hypercube_shape"] = "x".join(str(d) for d in shapes[shape_idx])
+        meta["hypercube_perm"] = perm_idx
+        meta["hypercube_charset"] = charset_name(charset_mode)
         return (result, kind, axis_pos + 1)
 
     def _execute_skip(

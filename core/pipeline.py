@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from stages.key_derivation import N_KEY_DERIVATION_MODES
 from stages.amsco import N_AMSCO_PATTERNS
 from stages.charsets import N_CHARSET_MODES
+from stages.hypercube import MAX_PERMS, MAX_SHAPES
 from stages.modern import get_all_modern_stage_names, get_modern_stage_info, is_modern_stage
 from stages.playfair import N_PLAYFAIR_GRIDS
 from stages.skip import MAX_BYPASS, N_SKIP_VALUES
@@ -55,6 +56,7 @@ _CLASSICAL_STAGES = {
     "double_columnar",
     "b64",
     "hex",
+    "hypercube",
     "myszkowski",
     "playfair",
     "porta",
@@ -161,6 +163,11 @@ def axes_for_pipeline(
         elif st == "scytale":
             # 2-100 columns × charset modes
             axes.append(StageAxis("scytale", 99 * N_CHARSET_MODES))
+        elif st == "hypercube":
+            # grid shapes x axis permutations x charset modes
+            axes.append(
+                StageAxis("hypercube", MAX_SHAPES * MAX_PERMS * N_CHARSET_MODES)
+            )
         elif st == "skip":
             # skip values x bypass offsets x charset modes
             axes.append(
