@@ -60,6 +60,7 @@ from stages.railfence import (
 )
 from stages.charsets import N_CHARSET_MODES, charset_name
 from stages.amsco import N_AMSCO_PATTERNS, AMSCO_PATTERN_NAMES, amsco_decrypt
+from stages.modern import get_modern_stage_info, is_modern_stage, modern_decrypt, strip_padding
 from stages.playfair import N_PLAYFAIR_GRIDS, PLAYFAIR_GRID_NAMES, playfair_decrypt
 from stages.skip import MAX_BYPASS, MIN_SKIP, N_SKIP_VALUES, skip_decrypt
 from stages.trifid import (
@@ -296,6 +297,9 @@ class StageExecutor:
 
         elif stage == "scytale":
             return self._execute_scytale(payload, kind, param_idxs, axis_pos, meta)
+
+        elif is_modern_stage(stage):
+            return self._execute_modern(stage, payload, kind, param_idxs, axis_pos, meta)
 
         elif is_mcrypt_stage(stage):
             return self._execute_mcrypt(stage, payload, kind, param_idxs, axis_pos, meta)
@@ -904,6 +908,91 @@ class StageExecutor:
         meta["reverse_applied"] = True
         result = reverse_text(payload)  # type: ignore[arg-type]
         return (result, kind, axis_pos)
+
+    def _execute_modern(
+        self,
+        stage: str,
+        payload: str | bytes,
+        kind: Kind,
+        param_idxs: list[int],
+        axis_pos: int,
+        meta: Dict[str, Any],
+    ) -> tuple[str | bytes, Kind, int] | None:
+        """
+        Execute a standard-crypto stage (std-aes-*, std-des-*, std-3des-*).
+
+        Mirrors _execute_mcrypt's key derivation, key padding and IV strategy
+        decomposition so the two families are directly comparable.
+        """
+        if kind == "text":
+            try:
+                data = payload.encode("utf-8")  # type: ignore[union-attr]
+            except (UnicodeEncodeError, AttributeError):
+                return None
+        else:
+            data = payload  # type: ignore[assignment]
+
+        info = get_modern_stage_info(stage)
+        assert info is not None
+
+        combined = param_idxs[axis_pos]
+        n_eff = len(self.keys) * (N_CASE_VARIANTS if self.vary_case else 1)
+
+        iv_idx = 0
+        rest = combined
+        if info.needs_iv:
+            iv_idx = rest % N_IV_STRATEGIES
+            rest //= N_IV_STRATEGIES
+        key_pad_idx = rest % N_KEY_PAD_STRATEGIES
+        rest //= N_KEY_PAD_STRATEGIES
+        deriv_idx = rest % N_KEY_DERIVATION_MODES
+        ki_combined = rest // N_KEY_DERIVATION_MODES
+
+        key_str = self._get_effective_key(ki_combined)
+        key = derive_key(key_str, deriv_idx)
+        if key_pad_idx == KEY_PAD_ZERO_STRING:
+            key = key[: info.key_size].ljust(info.key_size, b"0")
+            meta[f"{stage}_key_pad"] = "zero-string-padded"
+        else:
+            meta[f"{stage}_key_pad"] = "null-padded"
+
+        iv: bytes | None = None
+        iv_label = "none"
+        if info.needs_iv:
+            size = info.iv_size
+            if iv_idx == IV_NULL:
+                iv, iv_label = b"\x00" * size, "null"
+            elif iv_idx == IV_ZERO_STRING:
+                iv, iv_label = b"0" * size, "zero-string"
+            elif iv_idx == IV_KEY_NULL_PAD:
+                iv, iv_label = key[:size].ljust(size, b"\x00"), "key-null-padded"
+            elif iv_idx == IV_KEY_ZERO_STRING_PAD:
+                iv, iv_label = key[:size].ljust(size, b"0"), "key-zero-string-padded"
+            elif iv_idx == IV_PREPENDED:
+                if len(data) <= size:
+                    return None
+                iv, data, iv_label = data[:size], data[size:], "prepended"
+
+        meta[f"{stage}_key"] = key_str
+        meta[f"{stage}_deriv"] = DERIVATION_NAMES.get(deriv_idx, f"unknown-{deriv_idx}")
+        meta[f"{stage}_iv"] = iv_label
+
+        result = modern_decrypt(data, info, key, iv)
+        if result is None:
+            return None
+
+        result = strip_padding(result, info.block_size)
+        while result and result[-1] < 0x20:
+            result = result[:-1]
+        if not result:
+            return None
+
+        if printable_ratio(result) == 1.0:
+            try:
+                return (result.decode("utf-8"), "text", axis_pos + 1)
+            except (UnicodeDecodeError, AttributeError):
+                pass
+        return (result, "bytes", axis_pos + 1)
 
     def _execute_mcrypt(
         self,

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from stages.key_derivation import N_KEY_DERIVATION_MODES
 from stages.amsco import N_AMSCO_PATTERNS
 from stages.charsets import N_CHARSET_MODES
+from stages.modern import get_all_modern_stage_names, get_modern_stage_info, is_modern_stage
 from stages.playfair import N_PLAYFAIR_GRIDS
 from stages.skip import MAX_BYPASS, N_SKIP_VALUES
 from stages.trifid import N_TRIFID_CUBES, N_TRIFID_PERIODS
@@ -81,7 +82,11 @@ _CLASSICAL_STAGES = {
 }
 
 # Valid stages = classical + all mcrypt stages (including aliases)
-VALID_STAGES = _CLASSICAL_STAGES | get_all_valid_stage_names()
+VALID_STAGES = (
+    _CLASSICAL_STAGES
+    | get_all_valid_stage_names()
+    | get_all_modern_stage_names()
+)
 
 
 @dataclass(slots=True)
@@ -201,6 +206,16 @@ def axes_for_pipeline(
             axes.append(StageAxis("columnar", k * N_COLUMNAR_CHARSET_MODES))
         elif st == "double_columnar":
             axes.append(StageAxis("double_columnar", k * k * N_COLUMNAR_CHARSET_MODES))
+        elif is_modern_stage(st):
+            minfo = get_modern_stage_info(st)
+            assert minfo is not None
+            iv_mult = N_IV_STRATEGIES if minfo.needs_iv else 1
+            axes.append(
+                StageAxis(
+                    st,
+                    k * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES * iv_mult,
+                )
+            )
         elif is_mcrypt_stage(st):
             info = get_stage_info(st)
             assert info is not None
