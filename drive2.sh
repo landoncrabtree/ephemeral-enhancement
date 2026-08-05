@@ -4,7 +4,7 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 CT="$(cat "${1:-../thegiant.txt}")"
-DICT="${2:-dicts/giant.txt}"
+DICT="${2:-dicts/druon.txt}"
 THRESH="${3:-1.45}"
 
 # Classical stages that preserve the base64 alphabet (transpositions permute;

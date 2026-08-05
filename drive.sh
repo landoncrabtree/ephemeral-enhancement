@@ -11,7 +11,7 @@ set -uo pipefail
 cd /Users/landoncrabtree/Downloads/bo3_ciphers
 
 CT_FILE="${1:-../thegiant.txt}"
-DICT="${2:-dicts/giant.txt}"
+DICT="${2:-dicts/druon.txt}"
 THRESH="${3:-1.4}"
 CT="$(cat "$CT_FILE")"
 

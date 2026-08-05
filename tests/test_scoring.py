@@ -230,3 +230,35 @@ class TestDictionaryComments:
         assert load_dictionary(self._write(tmp_path, "the giant has risen\n")) == [
             "the giant has risen"
         ]
+
+
+class TestVaryCasePreservesOriginal:
+    """
+    --vary-case must extend the dictionary spelling, not replace it.
+
+    With only lower/UPPER/Title, a CamelCase key was unreachable whenever
+    --vary-case was enabled: "TheGiant".title() is "Thegiant", so the
+    documented TG-4 key was never actually tried in any sweep.
+    """
+
+    @pytest.mark.parametrize(
+        "word", ["TheGiant", "ElGiganteX4", "DerRiese", "TheGiantHasRisen"]
+    )
+    def test_original_spelling_is_reachable(self, word):
+        from core.utils import N_CASE_VARIANTS, apply_case_variant
+
+        assert word in {apply_case_variant(word, i) for i in range(N_CASE_VARIANTS)}
+
+    def test_all_four_variants_present(self):
+        from core.utils import N_CASE_VARIANTS, apply_case_variant
+
+        assert N_CASE_VARIANTS == 4
+        got = [apply_case_variant("TheGiant", i) for i in range(N_CASE_VARIANTS)]
+        assert got == ["thegiant", "THEGIANT", "Thegiant", "TheGiant"]
+
+    def test_axis_size_reflects_four_variants(self):
+        from core.pipeline import axes_for_pipeline
+
+        sizes = {a.name: a.size for a in axes_for_pipeline(["columnar"], 4, vary_case=True)}
+        plain = {a.name: a.size for a in axes_for_pipeline(["columnar"], 4, vary_case=False)}
+        assert sizes["columnar"] == plain["columnar"] * 4

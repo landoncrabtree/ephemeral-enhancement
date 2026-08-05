@@ -38,7 +38,7 @@ python run_pipeline.py --join-network <token> --server https://your-host:8000
 That writes `~/.ee/config` (mode 600). Every later run uses it automatically:
 
 ```bash
-python run_pipeline.py --pipeline "beaufort>b64" --dictionary dicts/giant.txt --vary-case
+python run_pipeline.py --pipeline "beaufort>b64" --dictionary dicts/druon.txt --vary-case
 ```
 
 If someone already covered that exact space you get:

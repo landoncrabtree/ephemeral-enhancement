@@ -257,7 +257,7 @@ ASCII codes that must be decoded before the next base64 layer:
 python run_pipeline.py \
   --pipeline "b64>des-cfb>decimal>reverse>b64>twofish-cfb" \
   --ciphertext "$(cat rev9.txt)" \
-  --dictionary dicts/zombies.txt --vary-case --threshold 1.7
+  --dictionary dicts/druon.txt --vary-case --threshold 1.7
 ```
 
 ---

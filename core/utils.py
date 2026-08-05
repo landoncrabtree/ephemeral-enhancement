@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 
 # When --vary-case is used: try lowercase, uppercase, title case per word
-N_CASE_VARIANTS = 3  # 0=lower, 1=upper, 2=title
+N_CASE_VARIANTS = 4  # 0=lower, 1=upper, 2=title, 3=as written
 
 # Project root (parent of the `core` package), used to resolve bundled data
 # files such as the dictionaries in `dicts/` regardless of the current
@@ -44,9 +44,15 @@ def apply_case_variant(word: str, variant: int) -> str:
     """
     Return a case variant of the word (for --vary-case bruteforce).
 
+    Variant 3 is the word exactly as written in the dictionary. Without it
+    --vary-case would *replace* the dictionary spelling rather than extend it,
+    so a CamelCase key would never be tried: "TheGiant" title-cases to
+    "Thegiant", so the documented spelling was unreachable whenever
+    --vary-case was enabled.
+
     Args:
         word: Dictionary word
-        variant: 0=lowercase, 1=uppercase, 2=title case
+        variant: 0=lowercase, 1=uppercase, 2=title case, 3=as written
 
     Returns:
         Word with the chosen casing

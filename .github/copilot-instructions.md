@@ -119,7 +119,7 @@ Keyless stages (reverse, trithemius, b64) don't increment `axis_pos`.
 ### Dictionary and Keys
 
 - `dicts/full_dictionary.txt` — Full key dictionary (one word per line), the `--dictionary` default
-- `dicts/zombies.txt` — BO3 Zombies-specific terms
+- `dicts/druon.txt` — curated BO3 / Druon ARG key list (source of truth)
 - Relative `--dictionary` paths that don't exist in the cwd are resolved against the project root (`core/utils.py:resolve_data_path`)
 - Non-alphabetic entries exist in dictionary files; ciphers with alpha-only keys handle empty effective keys by returning `None`
 - `--vary-case` multiplies key space ×3 (lower/upper/title)

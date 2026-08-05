@@ -1,31 +1,27 @@
-# Druon / ElGiganteX4 ARG leads (callofduty.fandom.com/wiki/Druon).
-# --vary-case supplies lower/upper/title, so no manual case variants here.
-# CamelCase forms ARE listed: title-casing "TheGiantHasRisen" yields
-# "Thegianthasrisen", so CamelCase is not reachable from the spaced form.
+# Source of truth key list.
+#
+# --vary-case supplies lower, UPPER, Title and the spelling as written here,
+# so do NOT add case variants of an entry. Spacing variants ARE distinct keys
+# ("the giant has risen" != "TheGiantHasRisen"), so both forms are listed
+# where both are plausible.
+#
+# Druon / ElGiganteX4 ARG leads: callofduty.fandom.com/wiki/Druon
 the giant has risen
 TheGiantHasRisen
 the giant is risen
 TheGiantIsRisen
-thegianthasrisen
-thegiantisrisen
 death is not the final chapter
 DeathIsNotTheFinalChapter
-deathisnotthefinalchapter
 cordis die
 CordisDie
 druon
 antigoon
-DruonAntigoon
 druon antigoon
+DruonAntigoon
 xx_DA_xx
 Xx_DA_xX
 xxDAxx
 Xx_drUON_Antigoon_XX
-xx_druon_antigoon_xx
-ElGiganteX4
-elgigantex4
-el gigante
-ElGigante
 090501090603
 951963
 9051963
@@ -34,8 +30,8 @@ ElGigante
 walcourt
 antwerp
 monty
-DoctorMonty
 doctor monty
+DoctorMonty
 DrMonty
 red scarf
 redscarf
@@ -57,9 +53,19 @@ common defense pact
 nul ne peut passer
 paient le peage
 peage
-der riese
-DerRiese
-TheGiant
-zombies
 scheldt
 toll
+# The Giant / Der Riese
+TheGiant
+ElGigante
+ElGiganteX4
+TheGiantTheGiantTheGiantTheGiant
+Giant
+DerRiese
+Der Riese
+Riese
+Group935
+935
+Zombie
+Zombies
+115

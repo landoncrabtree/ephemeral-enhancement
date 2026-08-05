@@ -43,7 +43,7 @@ bo3_ciphers/
 ├── run_pipeline.py          # Main entry point
 ├── dicts/                   # Key dictionaries
 │   ├── full_dictionary.txt  # Full dictionary of keys to try (default)
-│   └── zombies.txt          # Short BO3 Zombies-specific dictionary
+│   └── druon.txt            # Curated BO3 / Druon ARG key list
 ├── pytest.ini              # Pytest configuration
 │
 ├── core/                   # Core pipeline logic (modular architecture)
@@ -193,7 +193,7 @@ python run_pipeline.py \
 ```bash
 python run_pipeline.py \
     --pipeline "caesar>b64>des-ecb" \
-    --dictionary dicts/zombies.txt \
+    --dictionary dicts/druon.txt \
     --vary-case \
     --threshold 1.5 \
     --workers 8
@@ -204,7 +204,7 @@ python run_pipeline.py \
 ```bash
 python run_pipeline.py \
     --pipeline "affine>b64>rijndael-128-cbc" \
-    --dictionary dicts/zombies.txt \
+    --dictionary dicts/druon.txt \
     --vary-case \
     --dry-run
 ```
