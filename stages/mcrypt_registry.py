@@ -67,6 +67,15 @@ IV_KEY_NULL_PAD = 2
 IV_KEY_ZERO_STRING_PAD = 3
 IV_PREPENDED = 4
 
+# Number of ciphertext discard strategies for block modes that do not use an IV
+# 0 = none
+# 1 = prepended: discard the first block (an unused IV)
+# 2 = appended: discard the last block (an unused IV)
+N_NON_IV_BLOCK_STRATEGIES = 3
+NON_IV_BLOCK_NONE = 0
+NON_IV_BLOCK_PREPENDED = 1
+NON_IV_BLOCK_APPENDED = 2
+
 
 @dataclass(frozen=True)
 class McryptStageInfo:

@@ -4,6 +4,10 @@ import hashlib
 
 import pytest
 
+from core.executor import StageExecutor
+from core.pipeline import axes_for_pipeline
+from stages.key_derivation import N_KEY_DERIVATION_MODES
+from stages.mcrypt_registry import N_KEY_PAD_STRATEGIES, N_NON_IV_BLOCK_STRATEGIES
 from stages.mcrypt_wrapper import McryptHandle, McryptHandleCache, mcrypt_decrypt
 
 
@@ -106,6 +110,43 @@ class TestMcryptRegistry:
         """N_KEY_PAD_STRATEGIES is 2 (as-is and zero-pad)."""
         from stages.mcrypt_registry import N_KEY_PAD_STRATEGIES
         assert N_KEY_PAD_STRATEGIES == 2
+
+    def test_ecb_axis_includes_iv_block_discards(self):
+        axis = axes_for_pipeline(["des-ecb"], 4)[0]
+        assert axis.size == (
+            4
+            * N_KEY_DERIVATION_MODES
+            * N_KEY_PAD_STRATEGIES
+            * N_NON_IV_BLOCK_STRATEGIES
+        )
+
+    def test_stream_axis_does_not_include_iv_block_discards(self):
+        axis = axes_for_pipeline(["arcfour"], 4)[0]
+        assert axis.size == 4 * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES
+
+
+class TestNonIVBlockDiscard:
+    """ECB ignores an IV, but some tools still attach one to the ciphertext."""
+
+    @pytest.mark.parametrize(
+        ("param_idx", "ciphertext", "iv_label"),
+        [
+            (1, b"unusediv" + bytes.fromhex("19dedaddbb054294"), "discarded-prepended"),
+            (2, bytes.fromhex("19dedaddbb054294") + b"unusediv", "discarded-appended"),
+        ],
+    )
+    def test_des_ecb_discards_unused_iv_block(
+        self, param_idx, ciphertext, iv_label
+    ):
+        executor = StageExecutor("", ["abcdefgh"], ["des-ecb"], "standard")
+        meta = {}
+
+        result = executor._execute_mcrypt(
+            "des-ecb", ciphertext, "bytes", [param_idx], 0, meta
+        )
+
+        assert result == ("TestData", "text", 1)
+        assert meta["des-ecb_iv"] == iv_label
 
 
 # Known encrypt→decrypt test vectors (generated from libmcrypt/PHP mcrypt)

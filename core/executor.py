@@ -31,6 +31,9 @@ from stages.mcrypt_registry import (
     KEY_PAD_ZERO_STRING,
     N_IV_STRATEGIES,
     N_KEY_PAD_STRATEGIES,
+    NON_IV_BLOCK_APPENDED,
+    NON_IV_BLOCK_PREPENDED,
+    N_NON_IV_BLOCK_STRATEGIES,
     get_stage_info,
     is_mcrypt_stage,
 )
@@ -1059,8 +1062,12 @@ class StageExecutor:
         data = payload  # type: ignore[assignment]
         param_idx = param_idxs[axis_pos]
 
-        # Decompose param_idx: ki * N_KEY_DERIVATION_MODES * N_KEY_PAD_STRATEGIES * N_IV_STRATEGIES
-        iv_mult = N_IV_STRATEGIES if info.needs_iv else 1
+        # Decompose param_idx: ki * derivation modes * key padding * data strategy
+        iv_mult = (
+            N_IV_STRATEGIES
+            if info.needs_iv
+            else N_NON_IV_BLOCK_STRATEGIES if info.is_block else 1
+        )
 
         iv_idx = param_idx % iv_mult
         rest = param_idx // iv_mult
@@ -1117,6 +1124,17 @@ class StageExecutor:
                 iv = data[: info.iv_size]
                 data = data[info.iv_size :]
                 iv_label = "prepended"
+        elif info.is_block:
+            if iv_idx == NON_IV_BLOCK_PREPENDED:
+                if len(data) <= info.block_size:
+                    return None
+                data = data[info.block_size :]
+                iv_label = "discarded-prepended"
+            elif iv_idx == NON_IV_BLOCK_APPENDED:
+                if len(data) <= info.block_size:
+                    return None
+                data = data[: -info.block_size]
+                iv_label = "discarded-appended"
 
         # Record metadata
         meta[f"{stage}_key"] = key_str
